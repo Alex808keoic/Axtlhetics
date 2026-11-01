@@ -2559,6 +2559,7 @@ Lógica, datos, textos, navegación, funciones y las figuras de ejercicios. Solo
 - **«Entrar con Google»** guarda todo el onboarding, igual que antes, y después va a Google. Al volver se abre Perfil, donde se elige qué compartir (D-076): entrar no comparte nada por sí solo.
 - **«Ahora no»** termina el onboarding como siempre. Se puede conectar más tarde desde Perfil.
 - No cambia nada de lo que se pregunta ni de lo que se guarda.
+- **Ampliación (2026-11-01):** la sección «Ecosistema AXIS» de Perfil dice «AXTHLETICS es parte del ecosistema AXIS» y termina con «Abrir AXIS», que abre la app AXIS. Desde AXIS, la tarjeta de AXTHLETICS abre esta app: los dos sentidos, como un sistema operativo.
 
 ---
 

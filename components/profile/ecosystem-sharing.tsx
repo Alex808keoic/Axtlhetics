@@ -1,7 +1,8 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { LogOut, Share2, Unlink } from 'lucide-react'
+import { ArrowUpRight, LogOut, Share2, Unlink } from 'lucide-react'
+import { AXIS_URL } from '@/lib/ecosystem/ecosystem-client'
 import { MultiChoiceGroup, SectionTitle } from '@/components/profile/controls'
 import { AXTHLETICS_METRICS, DEFAULT_METRICS, METRIC_LABELS, type AxthleticsMetric } from '@/lib/domain/ecosystem/sharing'
 import { useEcosystem } from '@/lib/ecosystem/use-ecosystem'
@@ -49,6 +50,7 @@ export function EcosystemSharing() {
   return (
     <>
       <SectionTitle>Ecosistema AXIS</SectionTitle>
+      <p className="mt-1 text-caption font-semibold uppercase tracking-[0.08em] text-muted-foreground">AXTHLETICS es parte del ecosistema AXIS</p>
       <p className="mt-1 text-footnote leading-relaxed text-muted-foreground text-pretty">
         AXIS es también la app que une AXTHLETICS con Finax y Mentax. Si quieres, le mandas un resumen de cada semana: solo
         números por semana, nunca tus series, notas, fotos ni lo que hablas aquí con AXIS.
@@ -133,6 +135,12 @@ export function EcosystemSharing() {
       )}
 
       {message && <p className="mt-3 text-footnote leading-relaxed text-muted-foreground text-pretty">{message}</p>}
+
+      {/* De vuelta al centro del ecosistema (D-078). */}
+      <a href={AXIS_URL} target="_blank" rel="noopener noreferrer" className={`${pill} mt-3 w-full text-foreground`}>
+        Abrir AXIS
+        <ArrowUpRight className="h-4 w-4" strokeWidth={2} />
+      </a>
     </>
   )
 }
