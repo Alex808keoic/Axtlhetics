@@ -2571,6 +2571,13 @@ Lógica, datos, textos, navegación, funciones y las figuras de ejercicios. Solo
 - **El paso «Conecta con AXIS» (D-078)** usa los mismos puntos con icono.
 - Las preguntas, lo que se guarda y el resto del onboarding no cambian. Colores, fuente y radios son los de D-077.
 
+## D-080 — AXIS pensando, como en la app AXIS
+
+**Fecha:** 2026-11-01 · **Estado:** aprobado por Alex («la animación que hay en AXIS cuando responde, en las otras 3 apps»).
+
+- Mientras AXIS prepara su respuesta en el chat, en vez de tres puntos que laten se ve **el símbolo de AXIS girando despacio** (una vuelta cada 4 s, `.ax-spin`) junto a «Pensando…», igual que en la app AXIS, Finax y Mentax.
+- Es un indicador de espera, no decoración: solo aparece mientras se espera la respuesta. Con movimiento reducido, el símbolo queda quieto.
+
 ---
 
 ## Decisiones pendientes

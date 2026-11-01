@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState, type CSSProperties, type FormEvent } from 'react'
 import { ArrowLeft, ArrowUp, ArrowUpRight, Check } from 'lucide-react'
-import { AxisBadge } from '@/components/axis-symbol'
+import { AxisBadge, AxisSymbol } from '@/components/axis-symbol'
 import { EmptyNote } from '@/components/section-header'
 import type { AxisActionProposal } from '@/lib/domain/axis/actions'
 import { useAxtlhetics } from '@/lib/state/store'
@@ -318,18 +318,13 @@ function ActionCard({ action }: { action: AxisActionProposal }) {
   )
 }
 
-/** Estado de espera: tres puntos que laten, sin escribir carácter a carácter. */
+/** Estado de espera: el símbolo de AXIS gira despacio, como en la app AXIS (D-080). */
 function ThinkingBubble() {
   return (
     <div className="ax-enter flex justify-start">
-      <div className="flex items-center gap-1.5 rounded-3xl rounded-bl-lg bg-surface px-5 py-4" aria-label="AXIS está pensando">
-        {[0, 1, 2].map((index) => (
-          <span
-            key={index}
-            className="ax-stagger-fade h-1.5 w-1.5 rounded-full bg-muted-foreground"
-            style={{ '--ax-index': index } as CSSProperties}
-          />
-        ))}
+      <div className="flex items-center gap-2.5 rounded-3xl rounded-bl-lg bg-surface px-4 py-3 text-subhead text-muted-foreground" role="status">
+        <AxisSymbol className="ax-spin h-5 w-5" />
+        Pensando…
       </div>
     </div>
   )

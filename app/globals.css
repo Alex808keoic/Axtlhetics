@@ -267,6 +267,13 @@
   }
 }
 
+/* AXIS pensando: su símbolo gira despacio, como en la app AXIS. */
+@keyframes ax-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
 @keyframes ax-fade-in {
   from {
     opacity: 0;
@@ -339,6 +346,16 @@
   .ax-stagger-fade {
     animation: ax-fade-in var(--ax-enter) var(--ax-ease) both;
     animation-delay: calc(min(var(--ax-index, 0), 6) * var(--ax-stagger));
+  }
+
+  /** AXIS pensando: una vuelta cada 4 s. Sin movimiento reducido, quieto. */
+  .ax-spin {
+    animation: ax-spin 4s linear infinite;
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .ax-spin {
+      animation: none;
+    }
   }
 
   /** Traza una línea de SVG. Requiere `pathLength="1"` en el elemento. */
