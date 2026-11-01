@@ -1,8 +1,8 @@
 'use client'
 
 import { useMemo, useState } from 'react'
-import { ArrowLeft, ArrowRight, Minus, Plus, X } from 'lucide-react'
-import { BrandTile } from '@/components/axis-mark'
+import { ArrowLeft, ArrowRight, Dumbbell, HeartPulse, Layers, Link2, Lock, Minus, Plus, TrendingUp, X, type LucideIcon } from 'lucide-react'
+import { AxisMark, BrandTile } from '@/components/axis-mark'
 import { AxisBadge } from '@/components/axis-symbol'
 import { useEcosystem } from '@/lib/ecosystem/use-ecosystem'
 import { RestoreFromBackup } from '@/components/profile/backup-controls'
@@ -113,7 +113,98 @@ type Step = {
   canContinue: boolean
 }
 
+/**
+ * Bienvenida (D-079): dos pantallas con la estética de la bienvenida de AXIS —marca
+ * centrada, título grande, puntos con icono, puntos de avance y un botón grande— antes
+ * de las preguntas. Se pueden saltar; las preguntas no cambian.
+ */
 export function OnboardingScreen() {
+  const [intro, setIntro] = useState<0 | 1 | null>(0)
+  if (intro === null) return <OnboardingQuestions />
+  return <OnboardingIntro step={intro} onStep={setIntro} />
+}
+
+const INTRO_POINTS = [
+  { icon: Dumbbell, title: 'Tu entreno de hoy', text: 'AXIS lo prepara según cómo llegas, tu semana y tus objetivos, y te explica por qué.' },
+  { icon: HeartPulse, title: 'Tu recuperación', text: 'Sueño, energía y estrés en segundos. AXIS lo tiene en cuenta para no pasarse.' },
+  { icon: TrendingUp, title: 'Tu progreso', text: 'Récords, objetivos y tu nivel, semana a semana.' },
+  { icon: Lock, title: 'Tus datos, en tu móvil', text: 'Todo se guarda en este dispositivo. Sin cuenta.' },
+] as const
+
+function OnboardingIntro({ step, onStep }: { step: 0 | 1; onStep: (next: 0 | 1 | null) => void }) {
+  return (
+    <div className="flex flex-1 flex-col px-6 pb-6">
+      <header className="flex min-h-11 items-center justify-between pt-2">
+        {step === 1 ? (
+          <button type="button" onClick={() => onStep(0)} aria-label="Atrás" className="ax-press -ml-2 flex h-11 w-11 items-center justify-center">
+            <ArrowLeft className="h-[22px] w-[22px] text-foreground" strokeWidth={1.75} />
+          </button>
+        ) : (
+          <span className="flex h-11 items-center gap-2.5">
+            <BrandTile />
+            <span className="text-headline font-extrabold tracking-[-0.03em] text-foreground">axthletics</span>
+          </span>
+        )}
+        <button type="button" onClick={() => onStep(null)} className="ax-press min-h-11 px-2 text-subhead font-semibold text-muted-foreground">
+          Saltar
+        </button>
+      </header>
+
+      <div key={step} className="ax-enter flex flex-1 flex-col justify-center py-8">
+        {step === 0 ? (
+          <div className="text-center">
+            <span className="mx-auto flex h-24 w-24 items-center justify-center rounded-[28px] bg-primary shadow-card-lg">
+              <AxisMark className="h-12 w-12" color="var(--primary-foreground)" />
+            </span>
+            <h1 className="mt-8 text-title-lg font-bold text-balance">Bienvenido a AXTHLETICS</h1>
+            <p className="mx-auto mt-3 max-w-sm text-body leading-relaxed text-muted-foreground text-pretty">
+              El sistema operativo de tu cuerpo. Cada día, <b className="font-semibold text-foreground">AXIS</b> decide qué entrenamiento tiene sentido para ti y te explica por qué.
+            </p>
+          </div>
+        ) : (
+          <div>
+            <h1 className="text-title-lg font-bold text-balance">Qué hace AXTHLETICS</h1>
+            <p className="mt-2 text-callout leading-relaxed text-muted-foreground text-pretty">Menos decisiones: abres la app y sabes qué hacer hoy.</p>
+            <ul className="mt-6 space-y-3">
+              {INTRO_POINTS.map((point) => (
+                <IntroPoint key={point.title} {...point} />
+              ))}
+            </ul>
+          </div>
+        )}
+      </div>
+
+      <div>
+        <div className="mb-5 flex justify-center gap-1.5" aria-hidden="true">
+          {[0, 1].map((i) => (
+            <span key={i} className={`h-1.5 rounded-full transition-all duration-300 ${i === step ? 'w-5 bg-primary' : 'w-1.5 bg-track'}`} />
+          ))}
+        </div>
+        <PrimaryButton onClick={() => onStep(step === 0 ? 1 : null)}>
+          {step === 0 ? 'Empezar' : 'Siguiente'}
+          <ArrowRight className="h-4 w-4" />
+        </PrimaryButton>
+      </div>
+    </div>
+  )
+}
+
+/** Un punto con icono, como en la bienvenida de AXIS. */
+function IntroPoint({ icon: Icon, title, text }: { icon: LucideIcon; title: string; text: string }) {
+  return (
+    <li className="flex items-start gap-4 rounded-[20px] bg-surface px-4 py-3.5 shadow-card">
+      <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-[14px] bg-fill text-foreground" aria-hidden="true">
+        <Icon className="h-[19px] w-[19px]" strokeWidth={1.9} />
+      </span>
+      <div>
+        <p className="text-callout font-semibold">{title}</p>
+        <p className="text-footnote leading-snug text-muted-foreground text-pretty">{text}</p>
+      </div>
+    </li>
+  )
+}
+
+function OnboardingQuestions() {
   const { saveProfile, saveBaseline, addActivity, readHealthNote } = useAxtlhetics()
   const ecosystem = useEcosystem()
 
@@ -598,19 +689,16 @@ export function OnboardingScreen() {
  */
 function AxisInvitation() {
   const points = [
-    { title: 'Qué es AXIS', text: 'La app que une AXTHLETICS con Finax y Mentax: cada semana te resume cómo vas en cuerpo, mente y dinero, y te propone un paso para mejorar.' },
-    { title: 'Por qué con Google', text: 'Con la misma cuenta en todas las apps, se conectan solas. No hay contraseñas nuevas.' },
-    { title: 'Qué se comparte', text: 'Nada hasta que lo confirmes. Después, solo un resumen de números por semana: nunca tus series, notas, fotos ni lo que hablas con AXIS.' },
+    { icon: Layers, title: 'Qué es AXIS', text: 'La app que une AXTHLETICS con Finax y Mentax: cada semana te resume cómo vas en cuerpo, mente y dinero, y te propone un paso para mejorar.' },
+    { icon: Link2, title: 'Por qué con Google', text: 'Con la misma cuenta en todas las apps, se conectan solas. No hay contraseñas nuevas.' },
+    { icon: Lock, title: 'Qué se comparte', text: 'Nada hasta que lo confirmes. Después, solo un resumen de números por semana: nunca tus series, notas, fotos ni lo que hablas con AXIS.' },
   ]
   return (
     <div>
       <AxisBadge size="lg" />
       <ul className="mt-6 space-y-3">
         {points.map((point) => (
-          <li key={point.title} className="rounded-[20px] bg-surface px-4 py-3.5 shadow-card">
-            <p className="text-callout font-semibold">{point.title}</p>
-            <p className="mt-1 text-footnote leading-relaxed text-muted-foreground text-pretty">{point.text}</p>
-          </li>
+          <IntroPoint key={point.title} {...point} />
         ))}
       </ul>
     </div>

@@ -2563,6 +2563,16 @@ Lógica, datos, textos, navegación, funciones y las figuras de ejercicios. Solo
 
 ---
 
+## D-079 — Bienvenida con la estética de AXIS
+
+**Fecha:** 2026-11-01 · **Estado:** aprobado por Alex («la estética visual del onboarding de AXIS me encanta, hazlo parecido en axthletics»).
+
+- **Dos pantallas antes de las preguntas:** «Bienvenido a AXTHLETICS» (la marca en un recuadro cobalto grande, centrada, con una frase sobre lo que hace) y «Qué hace AXTHLETICS» (cuatro puntos con icono: tu entreno de hoy, tu recuperación, tu progreso, tus datos en tu móvil). Puntos de avance abajo, botón principal grande y «Saltar» arriba, como la bienvenida de la app AXIS.
+- **El paso «Conecta con AXIS» (D-078)** usa los mismos puntos con icono.
+- Las preguntas, lo que se guarda y el resto del onboarding no cambian. Colores, fuente y radios son los de D-077.
+
+---
+
 ## Decisiones pendientes
 
 Nada de lo que sigue debe inventarse ni resolverse sin aprobación explícita de Alex.
