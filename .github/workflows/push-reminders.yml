@@ -24,4 +24,4 @@ jobs:
           if [ -z "$CRON_SECRET" ]; then echo "CRON_SECRET sin configurar: no hay pasada."; exit 0; fi
           curl --fail-with-body --silent --show-error --max-time 60 \
             -H "Authorization: Bearer $CRON_SECRET" \
-            https://axtlhetics.vercel.app/api/push/cron
+            https://axtlhetics-livid.vercel.app/api/push/cron
