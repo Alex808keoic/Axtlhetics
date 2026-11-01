@@ -3,6 +3,8 @@
 import { useMemo, useState } from 'react'
 import { ArrowLeft, ArrowRight, Minus, Plus, X } from 'lucide-react'
 import { BrandTile } from '@/components/axis-mark'
+import { AxisBadge } from '@/components/axis-symbol'
+import { useEcosystem } from '@/lib/ecosystem/use-ecosystem'
 import { RestoreFromBackup } from '@/components/profile/backup-controls'
 import { EquipmentPicker } from '@/components/profile/equipment-picker'
 import { SexPicker } from '@/components/profile/about-you'
@@ -99,6 +101,7 @@ type StepId =
   | 'care'
   | 'health'
   | 'sports'
+  | 'axis'
   | { kind: 'sport-days'; sportIndex: number }
   | { kind: 'sport-intensity'; sportIndex: number }
 
@@ -112,6 +115,7 @@ type Step = {
 
 export function OnboardingScreen() {
   const { saveProfile, saveBaseline, addActivity, readHealthNote } = useAxtlhetics()
+  const ecosystem = useEcosystem()
 
   const [draft, setDraft] = useState<UserProfileDraft>(DEFAULT_DRAFT)
   const [sports, setSports] = useState<SportDraft[]>([])
@@ -244,7 +248,16 @@ export function OnboardingScreen() {
       },
     ])
 
-    return [...base, ...perSport]
+    // El último paso invita a conectar con el ecosistema AXIS (D-078). Se puede saltar.
+    const axis: Step = {
+      key: 'axis',
+      id: 'axis',
+      question: 'Conecta con AXIS',
+      hint: 'Opcional. Puedes hacerlo cuando quieras desde Perfil.',
+      canContinue: true,
+    }
+
+    return [...base, ...perSport, axis]
   }, [draft.name, draft.goals, draft.availableWeekdays, draft.background, draft.health, healthPending, measures, tape, sports])
 
   const safeIndex = Math.min(index, steps.length - 1)
@@ -300,6 +313,21 @@ export function OnboardingScreen() {
       return
     }
 
+    await finish()
+  }
+
+  /**
+   * Conectar con AXIS desde el último paso (D-078): primero se guarda todo, igual que con
+   * «Ahora no», y después se va a Google. Al volver se abre Perfil, donde se elige qué se
+   * comparte: nada sale del dispositivo hasta confirmarlo allí.
+   */
+  const connectAxis = async () => {
+    if (saving) return
+    await finish()
+    await ecosystem.signIn()
+  }
+
+  const finish = async () => {
     setSaving(true)
     await saveProfile({ ...draft, name: draft.name.trim() })
     // El punto de partida (D-067): el peso que se puso y, si se midió, la cinta.
@@ -518,6 +546,8 @@ export function OnboardingScreen() {
             />
           )}
 
+          {step.id === 'axis' && <AxisInvitation />}
+
           {typeof step.id === 'object' && step.id.kind === 'sport-intensity' && sportForStep && (
             <IntensityPicker
               sport={sportForStep}
@@ -536,11 +566,53 @@ export function OnboardingScreen() {
 
       {/* Abajo y fijo: la pregunta cambia, el botón no se mueve de sitio. */}
       <div className="sticky bottom-0 -mx-5 mt-auto bg-background/90 px-5 pt-6 pb-6 backdrop-blur-sm">
-        <PrimaryButton onClick={() => void goNext()} disabled={!step.canContinue || saving}>
-          {isLast ? 'Empezar' : 'Continuar'}
-          <ArrowRight className="h-4 w-4" />
-        </PrimaryButton>
+        {step.id === 'axis' ? (
+          <>
+            <PrimaryButton onClick={() => void connectAxis()} disabled={saving}>
+              Entrar con Google
+              <ArrowRight className="h-4 w-4" />
+            </PrimaryButton>
+            <button
+              type="button"
+              onClick={() => void finish()}
+              disabled={saving}
+              className="ax-press mt-2 flex min-h-11 w-full items-center justify-center rounded-full text-subhead font-semibold text-muted-foreground disabled:opacity-40"
+            >
+              Ahora no
+            </button>
+          </>
+        ) : (
+          <PrimaryButton onClick={() => void goNext()} disabled={!step.canContinue || saving}>
+            {isLast ? 'Empezar' : 'Continuar'}
+            <ArrowRight className="h-4 w-4" />
+          </PrimaryButton>
+        )}
       </div>
+    </div>
+  )
+}
+
+/**
+ * Por qué se pide entrar con Google (D-078): qué es AXIS, qué gana el usuario y qué no
+ * sale nunca de AXTHLETICS. Tres puntos, sin letra pequeña.
+ */
+function AxisInvitation() {
+  const points = [
+    { title: 'Qué es AXIS', text: 'La app que une AXTHLETICS con Finax y Mentax: cada semana te resume cómo vas en cuerpo, mente y dinero, y te propone un paso para mejorar.' },
+    { title: 'Por qué con Google', text: 'Con la misma cuenta en todas las apps, se conectan solas. No hay contraseñas nuevas.' },
+    { title: 'Qué se comparte', text: 'Nada hasta que lo confirmes. Después, solo un resumen de números por semana: nunca tus series, notas, fotos ni lo que hablas con AXIS.' },
+  ]
+  return (
+    <div>
+      <AxisBadge size="lg" />
+      <ul className="mt-6 space-y-3">
+        {points.map((point) => (
+          <li key={point.title} className="rounded-[20px] bg-surface px-4 py-3.5 shadow-card">
+            <p className="text-callout font-semibold">{point.title}</p>
+            <p className="mt-1 text-footnote leading-relaxed text-muted-foreground text-pretty">{point.text}</p>
+          </li>
+        ))}
+      </ul>
     </div>
   )
 }

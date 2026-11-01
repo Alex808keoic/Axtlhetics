@@ -2551,6 +2551,17 @@ Lógica, datos, textos, navegación, funciones y las figuras de ejercicios. Solo
 
 ---
 
+## D-078 — El onboarding termina invitando a conectar con AXIS
+
+**Fecha:** 2026-11-01 · **Estado:** aprobado por Alex («en los onboarding de axthletics y mentax añadid al final para registrarse con google aunque puedas saltarlo, pero que te explique el porqué»).
+
+- **Último paso del onboarding: «Conecta con AXIS»**, opcional. Explica en tres puntos qué es AXIS (la app que une AXTHLETICS, Finax y Mentax y te resume la semana), por qué con Google (la misma cuenta conecta las apps solas) y qué se comparte (nada hasta confirmarlo; después, solo números por semana, nunca series, notas, fotos ni conversaciones).
+- **«Entrar con Google»** guarda todo el onboarding, igual que antes, y después va a Google. Al volver se abre Perfil, donde se elige qué compartir (D-076): entrar no comparte nada por sí solo.
+- **«Ahora no»** termina el onboarding como siempre. Se puede conectar más tarde desde Perfil.
+- No cambia nada de lo que se pregunta ni de lo que se guarda.
+
+---
+
 ## Decisiones pendientes
 
 Nada de lo que sigue debe inventarse ni resolverse sin aprobación explícita de Alex.
