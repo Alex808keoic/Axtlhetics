@@ -400,9 +400,9 @@ export function PerfilScreen({
 /**
  * Borrar todos los datos.
  *
- * No hay cuenta que cerrar: los datos viven solo en este dispositivo. «Cerrar
- * sesión» aquí significa borrarlos, y no hay copia en ningún sitio desde la que
- * recuperarlos, así que se pide confirmación explícita.
+ * Borra los datos de este dispositivo. La copia en la nube (D-081) no se toca:
+ * con la sesión abierta se volvería a descargar, y así lo dice la pantalla. Se
+ * pide confirmación explícita.
  *
  * La confirmación es un segundo botón dentro de la pantalla, no un `confirm()`
  * del navegador: un diálogo del sistema rompe la interfaz y bloquea la página.
@@ -419,15 +419,15 @@ function DangerZone() {
       {!confirming ? (
         <>
           <p className="mt-2 text-footnote leading-relaxed text-muted-foreground">
-            Todo lo que registras vive solo en este dispositivo. Puedes borrarlo cuando
-            quieras y empezar de cero.
+            Todo lo que registras vive en este dispositivo y, si has entrado con Google, en
+            tu copia en la nube. Puedes borrarlo cuando quieras y empezar de cero.
           </p>
           <button
             type="button"
             onClick={() => setConfirming(true)}
             className="ax-press mt-4 min-h-11 w-full rounded-full bg-surface text-subhead font-semibold text-error"
           >
-            Cerrar sesión y borrar mis datos
+            Borrar mis datos de este móvil
           </button>
         </>
       ) : (
@@ -437,8 +437,8 @@ function DangerZone() {
             {sessions.length === 1
               ? 'el entrenamiento que tienes guardado'
               : `los ${sessions.length} entrenamientos que tienes guardados`}
-            . <span className="font-semibold">No se puede deshacer</span> y no hay copia
-            en ningún otro sitio.
+            . <span className="font-semibold">No se puede deshacer.</span> Si tienes activada
+            la copia en la nube, se volverá a descargar: bórrala antes en Ecosistema AXIS.
           </p>
 
           <div className="mt-4 flex gap-2">

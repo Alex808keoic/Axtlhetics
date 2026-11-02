@@ -2580,6 +2580,20 @@ Lógica, datos, textos, navegación, funciones y las figuras de ejercicios. Solo
 
 ---
 
+## D-081 — Copia en la nube: tus datos en cualquier móvil
+
+**Fecha:** 2026-11-02 · **Estado:** aprobado por Alex («sí, sincronízalo en la nube», tras preguntar si al entrar con Google en otro móvil aparecían los mismos datos).
+
+- **Qué:** entrando con la misma cuenta de Google en otro móvil aparecen los mismos datos, en AXTHLETICS, Finax y Mentax.
+- **Cómo:** con la sesión de Google del ecosistema, cada registro local (almacén + clave) es una fila de `app_records` en el Supabase compartido (UE, RLS: cada usuario solo ve las suyas; SQL en el repo de AXIS, `supabase/002_app_records.sql`). El motor `lib/ecosystem/cloud-sync.ts` es idéntico en Finax, AXTHLETICS y Mentax; lo propio de cada app es su adaptador.
+- **Reglas:** se baja lo cambiado en la nube y se sube lo cambiado aquí (se detecta comparando huellas, sin tocar los sitios donde la app escribe). Si un registro cambió en los dos sitios, gana el del dispositivo, salvo en la **primera** sincronización de un dispositivo con esa cuenta, en la que manda la nube (así un móvil nuevo recupera tu perfil). Los borrados viajan. Si la base local aparece vacía entera con datos ya sincronizados, se vuelve a descargar todo en vez de borrar la nube.
+- **Cuándo:** al abrir con sesión, al volver a la app, al salir y cada minuto a la vista. Sin sesión, nada.
+- **Control:** en Ecosistema AXIS, «Sincronizar ahora» y «Borrar la copia de la nube» (borra la nube y apaga la copia en ese dispositivo; los datos locales no se tocan). Borrar los datos del móvil no borra la nube: con la sesión abierta, se vuelven a descargar (lo dice la pantalla).
+- **Cambia la promesa de privacidad:** sin entrar con Google, nada sale del dispositivo, como antes; al entrar, los datos completos se guardan en la cuenta del usuario. Los textos de bienvenida, privacidad y Ecosistema lo dicen. Lo que se comparte con la app AXIS (resúmenes semanales) no cambia.
+- **AXTHLETICS:** viajan perfil, calendario, recuperación, sesiones, memoria de AXIS, tests, escáneres y medidas (`lib/ecosystem/axthletics-sync.ts`). No viajan el entrenamiento en curso ni las **fotos de los escáneres** (D-023: solo viven en el móvil; el resultado del escáner sí). La pantalla no se refresca sola: si al abrir o volver llega algo, la app se recarga; en los ticks de cada minuto solo se sube.
+
+---
+
 ## Decisiones pendientes
 
 Nada de lo que sigue debe inventarse ni resolverse sin aprobación explícita de Alex.

@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { ArrowUpRight, LogOut, Share2, Unlink } from 'lucide-react'
+import { ArrowUpRight, Cloud, CloudOff, LogOut, RefreshCw, Share2, Unlink } from 'lucide-react'
 import { AXIS_URL } from '@/lib/ecosystem/ecosystem-client'
 import { MultiChoiceGroup, SectionTitle } from '@/components/profile/controls'
 import { AXTHLETICS_METRICS, DEFAULT_METRICS, METRIC_LABELS, type AxthleticsMetric } from '@/lib/domain/ecosystem/sharing'
@@ -16,13 +16,15 @@ const pill =
   'ax-press flex min-h-11 items-center justify-center gap-2 rounded-full bg-surface px-4 text-subhead font-semibold disabled:opacity-40'
 
 /**
- * Ecosistema AXIS (D-076): iniciar sesión con Google y elegir qué resumen semanal
- * se comparte con la app AXIS. Nada sale del dispositivo hasta que el usuario lo
- * confirma, y AXTHLETICS funciona igual sin conectar.
+ * Ecosistema AXIS (D-076): iniciar sesión con Google, la copia en la nube (D-081:
+ * tus datos en cualquier móvil con la misma cuenta) y qué resumen semanal se
+ * comparte con la app AXIS. Sin entrar, nada sale del dispositivo, y AXTHLETICS
+ * funciona igual.
  */
 export function EcosystemSharing() {
   const { profile } = useAxtlhetics()
-  const { account, lastSentAt, failed, signIn, share, stopSharing, signOut } = useEcosystem()
+  const { account, lastSentAt, failed, signIn, share, stopSharing, signOut, cloud } = useEcosystem()
+  const [confirmRemove, setConfirmRemove] = useState(false)
   const sharing = profile?.ecosystem ?? null
   const [metrics, setMetrics] = useState<AxthleticsMetric[]>(sharing?.metrics ?? [...DEFAULT_METRICS])
   const [busy, setBusy] = useState(false)
@@ -44,6 +46,14 @@ export function EcosystemSharing() {
 
   const toggle = (metric: AxthleticsMetric) =>
     setMetrics((current) => (current.includes(metric) ? current.filter((m) => m !== metric) : AXTHLETICS_METRICS.filter((m) => m === metric || current.includes(m))))
+
+  const cloudStatus = cloud.failed
+    ? 'No he podido sincronizar ahora. Lo intento otra vez en un momento.'
+    : cloud.syncing
+      ? 'Sincronizando…'
+      : cloud.lastSyncAt
+        ? `Al día. Última vez a las ${time.format(new Date(cloud.lastSyncAt))}.`
+        : 'Tus datos se guardan en tu cuenta y aparecen en cualquier móvil donde entres con ella. Las fotos de los escáneres se quedan en este móvil.'
 
   const changed = sharing !== null && sharing.metrics.join(',') !== metrics.join(',')
 
@@ -69,7 +79,7 @@ export function EcosystemSharing() {
             Entrar con Google
           </button>
           <p className="mt-2 text-caption leading-relaxed text-muted-foreground text-pretty">
-            Usa la misma cuenta de Google en todas las apps: así se conectan solas.
+            Al entrar, tus datos se guardan también en tu cuenta para tenerlos en cualquier móvil. Usa la misma cuenta de Google en todas las apps: así se conectan solas.
           </p>
         </>
       )}
@@ -79,6 +89,56 @@ export function EcosystemSharing() {
           <p className="mt-3 text-footnote text-muted-foreground">
             Conectado como <span className="font-medium text-foreground">{account.email ?? 'tu cuenta de Google'}</span>
           </p>
+
+          {cloud.enabled ? (
+            <>
+              <p className="mt-3 text-footnote leading-relaxed text-muted-foreground text-pretty">
+                <span className="font-semibold text-foreground">Copia en la nube activada.</span> {cloudStatus}
+              </p>
+              {!confirmRemove ? (
+                <div className="mt-3 grid grid-cols-2 gap-2">
+                  <button type="button" onClick={() => void cloud.syncNow()} disabled={busy || cloud.syncing} className={`${pill} text-primary`}>
+                    <RefreshCw className="h-4 w-4" strokeWidth={2} />
+                    Sincronizar
+                  </button>
+                  <button type="button" onClick={() => setConfirmRemove(true)} disabled={busy} className={`${pill} text-muted-foreground`}>
+                    <CloudOff className="h-4 w-4" strokeWidth={2} />
+                    Borrar copia
+                  </button>
+                </div>
+              ) : (
+                <div className="ax-enter mt-3">
+                  <p className="text-footnote leading-relaxed text-pretty">
+                    Se borran tus datos de AXTHLETICS de la nube y este móvil deja de sincronizar. En este móvil no se toca nada.
+                  </p>
+                  <div className="mt-3 grid grid-cols-2 gap-2">
+                    <button type="button" onClick={() => setConfirmRemove(false)} disabled={busy} className={`${pill} text-muted-foreground`}>
+                      Cancelar
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() =>
+                        void run(async () => {
+                          setConfirmRemove(false)
+                          return (await cloud.removeCloudCopy()) ? 'Copia de la nube borrada. Este móvil ya no sincroniza.' : 'No he podido borrarla. Inténtalo con conexión.'
+                        })
+                      }
+                      disabled={busy}
+                      className={`${pill} text-error`}
+                    >
+                      <CloudOff className="h-4 w-4" strokeWidth={2} />
+                      Borrar
+                    </button>
+                  </div>
+                </div>
+              )}
+            </>
+          ) : (
+            <button type="button" onClick={() => void cloud.enable()} disabled={busy} className={`${pill} mt-3 w-full text-primary`}>
+              <Cloud className="h-4 w-4" strokeWidth={2} />
+              Activar copia en la nube
+            </button>
+          )}
 
           <MultiChoiceGroup
             label="Qué compartes cada semana"

@@ -7,6 +7,10 @@
  * hace ninguna petición. Con sesión y consentimiento, envía los resúmenes al
  * abrir la app y al salir de ella (como mucho cada pocos minutos). Si falla, no
  * molesta: se vuelve a intentar la próxima vez. AXTHLETICS nunca espera a AXIS.
+ *
+ * Con sesión, además, la copia en la nube (`cloud`, D-081): tus datos en cualquier
+ * dispositivo donde entres con la misma cuenta. La pantalla no se actualiza sola al
+ * cambiar la base, así que si al abrir o volver a la app llega algo, se recarga.
  */
 import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from 'react'
 import type { Session } from '@supabase/supabase-js'
@@ -14,8 +18,11 @@ import { getRepositories } from '@/lib/data'
 import { buildWeeklySnapshots } from '@/lib/domain/ecosystem/snapshot'
 import type { AxthleticsMetric } from '@/lib/domain/ecosystem/sharing'
 import { useAxtlhetics } from '@/lib/state/store'
+import { axthleticsSyncAdapter } from './axthletics-sync'
+import { useCloudSync, type CloudSyncApi } from './use-cloud-sync'
 import {
   deleteSharedData,
+  ecosystemClient,
   hasEcosystemSignal,
   pushSnapshots,
   signInWithGoogle,
@@ -40,6 +47,8 @@ export type EcosystemApi = {
   /** Deja de compartir y borra en AXIS todo lo recibido de AXTHLETICS. */
   stopSharing(): Promise<boolean>
   signOut(): Promise<void>
+  /** Copia en la nube de tus datos (independiente de lo que se comparte con AXIS). */
+  cloud: CloudSyncApi
 }
 
 const APP_VERSION = process.env.NEXT_PUBLIC_VERCEL_GIT_COMMIT_SHA?.slice(0, 7) ?? 'dev'
@@ -52,6 +61,13 @@ export function EcosystemProvider({ children }: { children: ReactNode }) {
   const [account, setAccount] = useState<EcosystemAccount>({ status: 'checking' })
   const [lastSentAt, setLastSentAt] = useState<string | null>(null)
   const [failed, setFailed] = useState(false)
+  const cloud = useCloudSync({
+    adapter: axthleticsSyncAdapter,
+    session,
+    getClient: ecosystemClient,
+    refreshesItself: false,
+    onPulled: () => window.location.reload(),
+  })
 
   useEffect(() => {
     if (!hasEcosystemSignal()) {
@@ -132,8 +148,8 @@ export function EcosystemProvider({ children }: { children: ReactNode }) {
   }, [])
 
   const value = useMemo<EcosystemApi>(
-    () => ({ account, lastSentAt, failed, signIn, share, stopSharing, signOut }),
-    [account, lastSentAt, failed, signIn, share, stopSharing, signOut],
+    () => ({ account, lastSentAt, failed, signIn, share, stopSharing, signOut, cloud }),
+    [account, lastSentAt, failed, signIn, share, stopSharing, signOut, cloud],
   )
   return <EcosystemContext.Provider value={value}>{children}</EcosystemContext.Provider>
 }

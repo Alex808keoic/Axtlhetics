@@ -128,7 +128,7 @@ const INTRO_POINTS = [
   { icon: Dumbbell, title: 'Tu entreno de hoy', text: 'AXIS lo prepara según cómo llegas, tu semana y tus objetivos, y te explica por qué.' },
   { icon: HeartPulse, title: 'Tu recuperación', text: 'Sueño, energía y estrés en segundos. AXIS lo tiene en cuenta para no pasarse.' },
   { icon: TrendingUp, title: 'Tu progreso', text: 'Récords, objetivos y tu nivel, semana a semana.' },
-  { icon: Lock, title: 'Tus datos, en tu móvil', text: 'Todo se guarda en este dispositivo. Sin cuenta.' },
+  { icon: Lock, title: 'Tus datos, tuyos', text: 'Todo se guarda en tu móvil, sin cuenta. Si entras con Google, también en tu cuenta, para tenerlo en cualquier móvil.' },
 ] as const
 
 function OnboardingIntro({ step, onStep }: { step: 0 | 1; onStep: (next: 0 | 1 | null) => void }) {
@@ -229,7 +229,7 @@ function OnboardingQuestions() {
         key: 'name',
         id: 'name',
         question: '¿Cómo te llamas?',
-        hint: 'Solo para saludarte. No sale de este dispositivo.',
+        hint: 'Solo para saludarte.',
         canContinue: draft.name.trim().length > 0,
       },
       {
@@ -690,7 +690,7 @@ function OnboardingQuestions() {
 function AxisInvitation() {
   const points = [
     { icon: Layers, title: 'Qué es AXIS', text: 'La app que une AXTHLETICS con Finax y Mentax: cada semana te resume cómo vas en cuerpo, mente y dinero, y te propone un paso para mejorar.' },
-    { icon: Link2, title: 'Por qué con Google', text: 'Con la misma cuenta en todas las apps, se conectan solas. No hay contraseñas nuevas.' },
+    { icon: Link2, title: 'Por qué con Google', text: 'Tus datos se guardan en tu cuenta y los tienes en cualquier móvil donde entres. Con la misma cuenta en todas las apps, se conectan solas. Sin contraseñas nuevas.' },
     { icon: Lock, title: 'Qué se comparte', text: 'Nada hasta que lo confirmes. Después, solo un resumen de números por semana: nunca tus series, notas, fotos ni lo que hablas con AXIS.' },
   ]
   return (
