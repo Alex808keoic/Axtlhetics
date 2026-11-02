@@ -2594,6 +2594,16 @@ Lógica, datos, textos, navegación, funciones y las figuras de ejercicios. Solo
 
 ---
 
+## D-082 — «¿Ya usas AXTHLETICS? Entrar con Google» al empezar
+
+**Fecha:** 2026-11-02 · **Estado:** aprobado por Alex («sí, añádelo en las 3 apps»), tras ver que en un móvil nuevo había que rellenar toda la bienvenida antes de recuperar los datos.
+
+- En la primera pantalla de la bienvenida, debajo de «Empezar», un botón **«¿Ya usas …? Entrar con Google»** (en Finax, Axthletics y Mentax). Va a Google sin guardar nada de la bienvenida y, al volver, la app enseña **«Recuperando tus datos…»** hasta que termina la primera sincronización (`markRestorePending` / `cloud.restoring` en `lib/ecosystem/use-cloud-sync.ts`; marca en sessionStorage, máximo 30 s). Al volver no se abre Ajustes/Perfil: se queda en Inicio.
+- Si la cuenta no tenía datos de esa app, sigue la bienvenida de siempre (Finax abre la guía de configuración). Si se cancela en Google, se vuelve a la bienvenida.
+- La invitación a entrar con Google al final de la bienvenida sigue igual, para quien empieza de cero.
+
+---
+
 ## Decisiones pendientes
 
 Nada de lo que sigue debe inventarse ni resolverse sin aprobación explícita de Alex.

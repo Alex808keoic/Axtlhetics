@@ -19,7 +19,7 @@ import { buildWeeklySnapshots } from '@/lib/domain/ecosystem/snapshot'
 import type { AxthleticsMetric } from '@/lib/domain/ecosystem/sharing'
 import { useAxtlhetics } from '@/lib/state/store'
 import { axthleticsSyncAdapter } from './axthletics-sync'
-import { useCloudSync, type CloudSyncApi } from './use-cloud-sync'
+import { markRestorePending, useCloudSync, type CloudSyncApi } from './use-cloud-sync'
 import {
   deleteSharedData,
   ecosystemClient,
@@ -42,6 +42,8 @@ export type EcosystemApi = {
   /** El último envío falló (sin red o AXIS no responde). */
   failed: boolean
   signIn(): Promise<string | null>
+  /** «¿Ya usas la app?»: entra con Google y, al volver, recupera los datos de la nube. */
+  restoreWithGoogle(): Promise<string | null>
   /** Confirma qué se comparte y envía la historia completa. */
   share(metrics: AxthleticsMetric[]): Promise<boolean>
   /** Deja de compartir y borra en AXIS todo lo recibido de AXTHLETICS. */
@@ -124,6 +126,19 @@ export function EcosystemProvider({ children }: { children: ReactNode }) {
   // Navega a Google; la sesión se recoge al volver (`hasEcosystemSignal` ve el `?code=`).
   const signIn = useCallback(() => signInWithGoogle(), [])
 
+  const restoreWithGoogle = useCallback(async () => {
+    markRestorePending('axthletics')
+    const failure = await signInWithGoogle()
+    if (failure) cloud.endRestore()
+    return failure
+  }, [cloud])
+
+  // Si se esperaba recuperar pero al final no hay sesión (se canceló en Google), se sigue.
+  const { restoring, endRestore } = cloud
+  useEffect(() => {
+    if (restoring && account.status === 'signedOut') endRestore()
+  }, [restoring, account.status, endRestore])
+
   const share = useCallback(
     async (metrics: AxthleticsMetric[]) => {
       await setEcosystemSharing({ metrics, since: new Date().toISOString() })
@@ -148,8 +163,8 @@ export function EcosystemProvider({ children }: { children: ReactNode }) {
   }, [])
 
   const value = useMemo<EcosystemApi>(
-    () => ({ account, lastSentAt, failed, signIn, share, stopSharing, signOut, cloud }),
-    [account, lastSentAt, failed, signIn, share, stopSharing, signOut, cloud],
+    () => ({ account, lastSentAt, failed, signIn, restoreWithGoogle, share, stopSharing, signOut, cloud }),
+    [account, lastSentAt, failed, signIn, restoreWithGoogle, share, stopSharing, signOut, cloud],
   )
   return <EcosystemContext.Provider value={value}>{children}</EcosystemContext.Provider>
 }

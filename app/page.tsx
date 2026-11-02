@@ -17,9 +17,12 @@ import { TestEvolucionScreen } from '@/components/screens/test-evolucion'
 import { EscanerScreen } from '@/components/screens/escaner'
 import { useAxtlhetics } from '@/lib/state/store'
 import { RETURN_TO_PROFILE_KEY } from '@/lib/ecosystem/ecosystem-client'
+import { useEcosystem } from '@/lib/ecosystem/use-ecosystem'
+import { isRestorePending } from '@/lib/ecosystem/use-cloud-sync'
 
 export default function Page() {
   const store = useAxtlhetics()
+  const { cloud } = useEcosystem()
   const [tab, setTab] = useState<Tab>('inicio')
   const [perfilOpen, setPerfilOpen] = useState(false)
   const [axisOpen, setAxisOpen] = useState(false)
@@ -33,7 +36,8 @@ export default function Page() {
     try {
       if (window.sessionStorage.getItem(RETURN_TO_PROFILE_KEY) === null) return
       window.sessionStorage.removeItem(RETURN_TO_PROFILE_KEY)
-      setPerfilOpen(true)
+      // Si se entró para recuperar los datos (D-082), se queda en Inicio.
+      if (!isRestorePending('axthletics')) setPerfilOpen(true)
     } catch {
       // Sin sessionStorage se queda en Inicio.
     }
@@ -79,7 +83,10 @@ export default function Page() {
         <main ref={mainRef} className="no-scrollbar flex-1 overflow-y-auto pt-2">
           {store.status === 'loading' && <AppLoading />}
 
-          {store.status === 'onboarding' && (
+          {/* Al volver de Google desde «¿Ya usas AXTHLETICS?» (D-082): al llegar los datos, la app se recarga. */}
+          {store.status === 'onboarding' && cloud.restoring && <AppLoading text="Recuperando tus datos…" />}
+
+          {store.status === 'onboarding' && !cloud.restoring && (
             // Toda la altura: «Continuar» queda abajo, al alcance del pulgar.
             <div className="ax-enter flex min-h-full flex-col">
               <OnboardingScreen />

@@ -117,6 +117,7 @@ type Step = {
  * Bienvenida (D-079): dos pantallas con la estética de la bienvenida de AXIS —marca
  * centrada, título grande, puntos con icono, puntos de avance y un botón grande— antes
  * de las preguntas. Se pueden saltar; las preguntas no cambian.
+ * «¿Ya usas AXTHLETICS?» entra con Google y recupera los datos de la nube (D-082).
  */
 export function OnboardingScreen() {
   const [intro, setIntro] = useState<0 | 1 | null>(0)
@@ -132,6 +133,20 @@ const INTRO_POINTS = [
 ] as const
 
 function OnboardingIntro({ step, onStep }: { step: 0 | 1; onStep: (next: 0 | 1 | null) => void }) {
+  const { restoreWithGoogle } = useEcosystem()
+  const [restoring, setRestoring] = useState(false)
+  const [restoreError, setRestoreError] = useState<string | null>(null)
+
+  const restore = async () => {
+    setRestoring(true)
+    setRestoreError(null)
+    const failure = await restoreWithGoogle()
+    if (failure) {
+      setRestoreError(failure)
+      setRestoring(false)
+    }
+  }
+
   return (
     <div className="flex flex-1 flex-col px-6 pb-6">
       <header className="flex min-h-11 items-center justify-between pt-2">
@@ -180,10 +195,23 @@ function OnboardingIntro({ step, onStep }: { step: 0 | 1; onStep: (next: 0 | 1 |
             <span key={i} className={`h-1.5 rounded-full transition-all duration-300 ${i === step ? 'w-5 bg-primary' : 'w-1.5 bg-track'}`} />
           ))}
         </div>
-        <PrimaryButton onClick={() => onStep(step === 0 ? 1 : null)}>
+        <PrimaryButton onClick={() => onStep(step === 0 ? 1 : null)} disabled={restoring}>
           {step === 0 ? 'Empezar' : 'Siguiente'}
           <ArrowRight className="h-4 w-4" />
         </PrimaryButton>
+        {step === 0 && (
+          <>
+            <button
+              type="button"
+              onClick={() => void restore()}
+              disabled={restoring}
+              className="ax-press mt-2 min-h-12 w-full rounded-full text-subhead font-semibold text-muted-foreground disabled:opacity-40"
+            >
+              {restoring ? 'Abriendo Google…' : '¿Ya usas AXTHLETICS? Entrar con Google'}
+            </button>
+            {restoreError && <p className="mt-2 text-center text-footnote text-error">No se ha podido abrir Google: {restoreError}</p>}
+          </>
+        )}
       </div>
     </div>
   )
