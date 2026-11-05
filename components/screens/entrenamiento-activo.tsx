@@ -550,11 +550,11 @@ function WorkPanel({
   )
 }
 
-/** «¿Cuántas te quedaban?» tras cada serie (D-052, D-055). Opcional. */
+/** «¿Cuántas más podrías haber hecho?» tras cada serie (D-052, D-055, D-084). Opcional. */
 function ReservePicker({ question }: { question: ReserveQuestion }) {
   return (
     <div className="ax-fade mt-5 rounded-2xl bg-surface shadow-card p-4 text-left">
-      <p className="text-footnote font-semibold">¿Cuántas te quedaban?</p>
+      <p className="text-footnote font-semibold">¿Cuántas más podrías haber hecho?</p>
       <p className="mt-0.5 text-caption text-muted-foreground">
         {question.name} · buscamos {REPS_IN_RESERVE_LABELS[question.target]} ·{' '}
         {question.last ? 'AXIS ajusta la próxima vez' : 'AXIS ajusta la siguiente serie'}

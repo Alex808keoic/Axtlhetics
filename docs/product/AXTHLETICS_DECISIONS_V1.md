@@ -2618,6 +2618,15 @@ Lógica, datos, textos, navegación, funciones y las figuras de ejercicios. Solo
 
 ---
 
+## D-084 — «¿Cuántas más podrías haber hecho?»
+
+**Fecha:** 2026-11-05 · **Estado:** aprobada e implementada · Decidido por Alex («sí, cámbialo»), tras no entender la pregunta en un entrenamiento. **Cambia** el texto de D-052 y D-055.
+
+- La pregunta tras cada serie pasa de «¿Cuántas te quedaban?» a **«¿Cuántas más podrías haber hecho?»**.
+- **No cambia:** las opciones (0 · 1–2 · 3 o más), lo que se guarda (`reserve`) ni cómo se ajusta la siguiente serie.
+
+---
+
 ## Decisiones pendientes
 
 Nada de lo que sigue debe inventarse ni resolverse sin aprobación explícita de Alex.
