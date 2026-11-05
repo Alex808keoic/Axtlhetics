@@ -2713,6 +2713,19 @@ Lógica, datos, textos, navegación, funciones y las figuras de ejercicios. Solo
 
 ---
 
+## D-090 — El detalle de cada entrenamiento en el Historial
+
+**Fecha:** 2026-11-05 · **Estado:** aprobada e implementada · Pedido por Alex. Precisa D-075: los últimos entrenamientos siguen siendo una lista agrupada, ahora abrible.
+
+- **Tocar un entrenamiento de «Últimos entrenamientos» abre su detalle**, en lugar del Historial y sin pestaña propia, como los tests y los escáneres. «Atrás» y la flecha vuelven al Historial (D-088).
+- **Qué enseña:** título, fecha y hora, objetivo, tiempo, ejercicios, volumen, cuánto costó, récords, cada ejercicio con lo previsto y serie a serie (repeticiones o segundos, carga y margen), los cambios sobre lo previsto y las notas.
+- **En el orden en que se hizo:** la aproximación va justo antes de su ejercicio (D-086), así que no se agrupa por fases.
+- **Los récords son los de aquel día:** solo se compara con lo anterior a esa sesión, aunque después se superaran.
+- **No repite la frase de cierre de AXIS:** habla de «hoy» y de «la próxima», y mirando atrás no sería cierta.
+- **Las sesiones interrumpidas siguen sin aparecer en la lista,** y la lista sigue siendo de las cinco últimas. Solo lectura: no se edita ni se borra desde aquí.
+
+---
+
 ## Decisiones pendientes
 
 Nada de lo que sigue debe inventarse ni resolverse sin aprobación explícita de Alex.

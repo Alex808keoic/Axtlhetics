@@ -1,12 +1,13 @@
 'use client'
 
 import { useState, type CSSProperties } from 'react'
-import { BarChart3, Clock, Dumbbell } from 'lucide-react'
+import { BarChart3, ChevronRight, Clock, Dumbbell } from 'lucide-react'
 import type { ChartPoint, HistoryRange } from '@/lib/domain/history/stats'
 import { formatTotalTime, formatVolume, HISTORY_RANGE_LABELS } from '@/lib/domain/history/stats'
 import { formatDuration, formatShortDate } from '@/lib/domain/shared/dates'
 import { safeDivide } from '@/lib/domain/shared/ids'
 import { AssessmentDetail, AssessmentHistoryList } from '@/components/assessment/assessment-history'
+import { SessionDetail } from '@/components/history/session-detail'
 import { ScanDetail, ScanHistoryList } from '@/components/scanner/scan-history'
 import { EmptyNote, SectionHeader } from '@/components/section-header'
 import { useBackLayer } from '@/lib/navigation/use-back'
@@ -24,17 +25,21 @@ const SUMMARY_TITLES: Record<HistoryRange, string> = {
 export function HistorialScreen() {
   const { historyStats, sessions } = useAxtlhetics()
   const [range, setRange] = useState<HistoryRange>('semana')
+  // El detalle de un entrenamiento se abre en lugar del historial (D-090).
+  const [openSessionId, setOpenSessionId] = useState<string | null>(null)
   // El detalle de un test de evolución se abre en lugar del historial (D-021).
   const [openTestId, setOpenTestId] = useState<string | null>(null)
   // Y el de un escaneo corporal (D-023).
   const [openScanId, setOpenScanId] = useState<string | null>(null)
 
+  useBackLayer(openSessionId !== null, () => setOpenSessionId(null))
   useBackLayer(openTestId !== null, () => setOpenTestId(null))
   useBackLayer(openScanId !== null, () => setOpenScanId(null))
 
   const stats = historyStats(range)
   const recent = sessions.filter((session) => session.status === 'completed').slice(0, 5)
 
+  if (openSessionId) return <SessionDetail id={openSessionId} onBack={() => setOpenSessionId(null)} />
   if (openTestId) return <AssessmentDetail id={openTestId} onBack={() => setOpenTestId(null)} />
   if (openScanId) return <ScanDetail id={openScanId} onBack={() => setOpenScanId(null)} />
 
@@ -111,21 +116,28 @@ export function HistorialScreen() {
           {recent.map((session, index) => (
             <li
               key={session.id}
-              className="ax-stagger flex min-h-16 items-center gap-3.5 border-b border-border px-4 py-3 last:border-b-0"
+              className="ax-stagger border-b border-border last:border-b-0"
               style={{ '--ax-index': index } as CSSProperties}
             >
-              <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-fill">
-                <Dumbbell className="h-[18px] w-[18px] text-foreground" strokeWidth={1.75} />
-              </span>
-              <span className="min-w-0 flex-1">
-                <span className="block text-callout font-semibold">{session.title}</span>
-                <span className="block text-footnote tabular-nums text-muted-foreground">
-                  {formatShortDate(session.dayKey)} · {formatDuration(session.durationSeconds)}
+              <button
+                type="button"
+                onClick={() => setOpenSessionId(session.id)}
+                className="ax-press flex min-h-16 w-full items-center gap-3.5 px-4 py-3 text-left"
+              >
+                <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-fill">
+                  <Dumbbell className="h-[18px] w-[18px] text-foreground" strokeWidth={1.75} />
                 </span>
-              </span>
-              <span className="shrink-0 text-footnote font-medium tabular-nums text-muted-foreground">
-                {formatVolume(session.totalVolumeKg)}
-              </span>
+                <span className="min-w-0 flex-1">
+                  <span className="block text-callout font-semibold">{session.title}</span>
+                  <span className="block text-footnote tabular-nums text-muted-foreground">
+                    {formatShortDate(session.dayKey)} · {formatDuration(session.durationSeconds)}
+                  </span>
+                </span>
+                <span className="shrink-0 text-footnote font-medium tabular-nums text-muted-foreground">
+                  {formatVolume(session.totalVolumeKg)}
+                </span>
+                <ChevronRight className="h-4 w-4 shrink-0 text-muted-nontext" />
+              </button>
             </li>
           ))}
         </ul>
