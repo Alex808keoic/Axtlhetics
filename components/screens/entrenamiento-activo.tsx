@@ -33,6 +33,7 @@ import { formatKg, formatSets, lastPerformedExercise } from '@/lib/domain/workou
 import { phaseLabel, REPS_IN_RESERVE_LABELS, REPS_IN_RESERVE_ORDER, type RepsInReserve } from '@/lib/domain/workouts/types'
 import { formatDuration } from '@/lib/domain/shared/dates'
 import { formatVolume } from '@/lib/domain/history/stats'
+import { useBackLayer } from '@/lib/navigation/use-back'
 import { useAxtlhetics } from '@/lib/state/store'
 import { cn } from '@/lib/utils'
 
@@ -60,6 +61,13 @@ export function EntrenamientoActivo() {
   const [now, setNow] = useState(() => new Date())
   const [detailsOpen, setDetailsOpen] = useState(false)
   const [confirming, setConfirming] = useState<'exit' | 'skip' | null>(null)
+
+  // «Atrás» hace lo mismo que la flecha: con series hechas pregunta, nunca cierra la sesión sin más (D-088).
+  useBackLayer(activeWorkout !== null, () => {
+    if (confirming) setConfirming(null)
+    else if (activeWorkout && hasProgress(activeWorkout)) setConfirming('exit')
+    else void abandonWorkout()
+  })
 
   const startedAt = activeWorkout?.startedAt
 

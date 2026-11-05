@@ -13,11 +13,13 @@ import { formatDuration } from '@/lib/domain/shared/dates'
 import { findExercise } from '@/lib/domain/workouts/catalog'
 import { formatKg, formatSets, personalRecords } from '@/lib/domain/workouts/history'
 import { EFFORT_LABELS, EFFORT_LEVELS, isMainExercise, metTarget, volumeOfExercise } from '@/lib/domain/workouts/types'
+import { useBackLayer } from '@/lib/navigation/use-back'
 import { useAxtlhetics } from '@/lib/state/store'
 import { cn } from '@/lib/utils'
 
 export function EntrenamientoCompletado() {
   const { lastCompleted, sessions, rateLastSession, dismissSummary } = useAxtlhetics()
+  useBackLayer(lastCompleted !== null, dismissSummary)
 
   if (!lastCompleted) return null
 

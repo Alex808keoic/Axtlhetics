@@ -10,6 +10,7 @@ import { summarizeScan } from '@/lib/domain/scanner/summary'
 import { physiquePlan } from '@/lib/domain/scanner/physique'
 import { tapeForScan } from '@/lib/domain/scanner/coach'
 import { formatDayInSentence } from '@/lib/domain/shared/dates'
+import { useBackLayer } from '@/lib/navigation/use-back'
 import { useAxtlhetics } from '@/lib/state/store'
 
 const capital = (text: string) => text.charAt(0).toUpperCase() + text.slice(1)
@@ -48,6 +49,7 @@ export function ScanHistoryList({ onOpen }: { onOpen: (id: string) => void }) {
 export function ScanDetail({ id, onBack }: { id: string; onBack: () => void }) {
   const { scans, assessments, sessions, profile, measurements: bodyRecords } = useAxtlhetics()
   const [confirming, setConfirming] = useState(false)
+  useBackLayer(confirming, () => setConfirming(false))
   useEffect(() => {
     document.querySelector('main')?.scrollTo({ top: 0 })
   }, [])

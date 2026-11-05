@@ -19,11 +19,14 @@ import { useAxtlhetics } from '@/lib/state/store'
 import { RETURN_TO_PROFILE_KEY } from '@/lib/ecosystem/ecosystem-client'
 import { useEcosystem } from '@/lib/ecosystem/use-ecosystem'
 import { isRestorePending } from '@/lib/ecosystem/use-cloud-sync'
+import { useBackLayer, useScreenStack } from '@/lib/navigation/use-back'
 
 export default function Page() {
   const store = useAxtlhetics()
   const { cloud } = useEcosystem()
-  const [tab, setTab] = useState<Tab>('inicio')
+  // Las pestañas, con Inicio como raíz: desde Inicio, «atrás» sale de la app (D-088).
+  const { current: tab, navigate: goToTab } = useScreenStack<Tab>('inicio')
+  const setTab = (next: Tab) => goToTab(next)
   const [perfilOpen, setPerfilOpen] = useState(false)
   const [axisOpen, setAxisOpen] = useState(false)
   // El test de evolución (D-021): un flujo dentro de Entrenamiento, no una pestaña.
@@ -42,6 +45,13 @@ export default function Page() {
       // Sin sessionStorage se queda en Inicio.
     }
   }, [])
+
+  const closeAxis = () => {
+    store.closeAxisChat()
+    setAxisOpen(false)
+  }
+  useBackLayer(axisOpen, closeAxis)
+  useBackLayer(perfilOpen, () => setPerfilOpen(false))
 
   const goToRecuperacion = () => setTab('recuperacion')
 
@@ -96,12 +106,7 @@ export default function Page() {
           {store.status === 'ready' && axisOpen && (
             // Ocupa toda la altura, para que el campo de escribir quede abajo aunque haya un solo mensaje.
             <div className="ax-enter flex min-h-full flex-col">
-              <AxisChatScreen
-                onClose={() => {
-                  store.closeAxisChat()
-                  setAxisOpen(false)
-                }}
-              />
+              <AxisChatScreen onClose={closeAxis} />
             </div>
           )}
 

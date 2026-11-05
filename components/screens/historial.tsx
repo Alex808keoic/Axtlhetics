@@ -9,6 +9,7 @@ import { safeDivide } from '@/lib/domain/shared/ids'
 import { AssessmentDetail, AssessmentHistoryList } from '@/components/assessment/assessment-history'
 import { ScanDetail, ScanHistoryList } from '@/components/scanner/scan-history'
 import { EmptyNote, SectionHeader } from '@/components/section-header'
+import { useBackLayer } from '@/lib/navigation/use-back'
 import { useAxtlhetics } from '@/lib/state/store'
 import { cn } from '@/lib/utils'
 
@@ -27,6 +28,9 @@ export function HistorialScreen() {
   const [openTestId, setOpenTestId] = useState<string | null>(null)
   // Y el de un escaneo corporal (D-023).
   const [openScanId, setOpenScanId] = useState<string | null>(null)
+
+  useBackLayer(openTestId !== null, () => setOpenTestId(null))
+  useBackLayer(openScanId !== null, () => setOpenScanId(null))
 
   const stats = historyStats(range)
   const recent = sessions.filter((session) => session.status === 'completed').slice(0, 5)

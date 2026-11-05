@@ -2667,6 +2667,19 @@ Lógica, datos, textos, navegación, funciones y las figuras de ejercicios. Solo
 
 ---
 
+## D-088 — El botón «atrás» del móvil
+
+**Fecha:** 2026-11-05 · **Estado:** aprobada e implementada · Pedido por Alex, igual en las cuatro apps del ecosistema (AXIS D-027).
+
+- **Vuelve a la pantalla anterior:** pestañas, Perfil, chat de AXIS, detalles del Historial, pasos del escáner y del onboarding. Solo sale de la app desde la raíz (Inicio, o la bienvenida si aún no hay perfil) y sin nada detrás.
+- **Ir a una pantalla que ya está en la pila vuelve a ella** en vez de apilarla otra vez: tocar Inicio vacía la pila.
+- **Nunca se pierde nada por tocar «atrás»:** en un entrenamiento o un test en curso hace lo mismo que su flecha. Con series o pruebas hechas pregunta; «atrás» otra vez sigue entrenando. Sin nada hecho, sale directamente, como la flecha. Mientras el escáner analiza o guarda, no hace nada.
+- **No son navegación:** los formularios y desplegables dentro de una pantalla (comidas, medidas, añadir deporte) no cuentan como paso atrás.
+- **Límite conocido:** Chrome se salta las entradas creadas sin un toque real. Si una vista se abre sola (volver de Google, sesión a medias al abrir la app) y se pulsa «atrás» sin haber tocado la pantalla, la app se cierra; lo guardado no se pierde.
+- Código: `lib/navigation/`, el mismo módulo en las cuatro apps.
+
+---
+
 ## Decisiones pendientes
 
 Nada de lo que sigue debe inventarse ni resolverse sin aprobación explícita de Alex.

@@ -5,6 +5,7 @@ import { ArrowLeft, ArrowRight, Dumbbell, HeartPulse, Layers, Link2, Lock, Minus
 import { AxisMark, BrandTile } from '@/components/axis-mark'
 import { AxisBadge } from '@/components/axis-symbol'
 import { useEcosystem } from '@/lib/ecosystem/use-ecosystem'
+import { useBackLayer } from '@/lib/navigation/use-back'
 import { RestoreFromBackup } from '@/components/profile/backup-controls'
 import { EquipmentPicker } from '@/components/profile/equipment-picker'
 import { SexPicker } from '@/components/profile/about-you'
@@ -121,7 +122,9 @@ type Step = {
  */
 export function OnboardingScreen() {
   const [intro, setIntro] = useState<0 | 1 | null>(0)
-  if (intro === null) return <OnboardingQuestions />
+  // La bienvenida es la raíz: «atrás» sale de la app. Las preguntas llevan su propia capa (D-088).
+  useBackLayer(intro === 1, () => setIntro(0))
+  if (intro === null) return <OnboardingQuestions onBackToIntro={() => setIntro(1)} />
   return <OnboardingIntro step={intro} onStep={setIntro} />
 }
 
@@ -232,7 +235,7 @@ function IntroPoint({ icon: Icon, title, text }: { icon: LucideIcon; title: stri
   )
 }
 
-function OnboardingQuestions() {
+function OnboardingQuestions({ onBackToIntro }: { onBackToIntro: () => void }) {
   const { saveProfile, saveBaseline, addActivity, readHealthNote } = useAxtlhetics()
   const ecosystem = useEcosystem()
 
@@ -423,6 +426,11 @@ function OnboardingQuestions() {
     setSports((current) => current.filter((_, i) => i !== sportIndex))
 
   const goBack = () => setIndex((current) => Math.max(0, current - 1))
+  useBackLayer(true, () => {
+    if (saving) return
+    if (index > 0) goBack()
+    else onBackToIntro()
+  })
 
   const goNext = async () => {
     if (!step.canContinue || saving) return

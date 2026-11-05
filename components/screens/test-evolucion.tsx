@@ -5,6 +5,7 @@ import { TestActive } from '@/components/assessment/test-active'
 import { TestIntro } from '@/components/assessment/test-intro'
 import { TestSummary } from '@/components/assessment/test-summary'
 import { Confirmation } from '@/components/workout/confirmation'
+import { useBackLayer } from '@/lib/navigation/use-back'
 import { useAxtlhetics } from '@/lib/state/store'
 
 /**
@@ -16,6 +17,27 @@ import { useAxtlhetics } from '@/lib/state/store'
 export function TestEvolucionScreen({ onClose }: { onClose: () => void }) {
   const { assessments } = useAxtlhetics()
   const [confirmingExit, setConfirmingExit] = useState(false)
+
+  const exitActive = async () => {
+    // Sin nada registrado no hay nada que perder: se sale sin preguntar.
+    const current = assessments.active
+    if (current && (current.results.length > 0 || current.pendingLeft !== null)) {
+      setConfirmingExit(true)
+      return
+    }
+    await assessments.interrupt()
+    onClose()
+  }
+
+  // «Atrás» hace lo mismo que los botones de cada fase (D-088).
+  useBackLayer(true, () => {
+    if (assessments.summary) {
+      assessments.dismissSummary()
+      onClose()
+    } else if (!assessments.active) onClose()
+    else if (confirmingExit) setConfirmingExit(false)
+    else void exitActive()
+  })
 
   if (assessments.summary) {
     return (
@@ -36,7 +58,6 @@ export function TestEvolucionScreen({ onClose }: { onClose: () => void }) {
   }
 
   const done = active.results.length
-  const hasProgress = done > 0 || active.pendingLeft !== null
 
   if (confirmingExit) {
     return (
@@ -70,15 +91,7 @@ export function TestEvolucionScreen({ onClose }: { onClose: () => void }) {
       onUndoLeft={() => void assessments.undoLeftSide()}
       onSkipRest={() => void assessments.skipRest()}
       onExtendRest={() => void assessments.extendRest()}
-      onExit={async () => {
-        // Sin nada registrado no hay nada que perder: se sale sin preguntar.
-        if (hasProgress) {
-          setConfirmingExit(true)
-          return
-        }
-        await assessments.interrupt()
-        onClose()
-      }}
+      onExit={exitActive}
     />
   )
 }

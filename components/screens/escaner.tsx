@@ -21,6 +21,7 @@ import { compareScans } from '@/lib/domain/scanner/compare'
 import { createScanRecord } from '@/lib/domain/scanner/types'
 import { createId } from '@/lib/domain/shared/ids'
 import { formatDayInSentence, todayKey } from '@/lib/domain/shared/dates'
+import { useBackLayer } from '@/lib/navigation/use-back'
 import { useAxtlhetics } from '@/lib/state/store'
 import { physiquePlan } from '@/lib/domain/scanner/physique'
 import { readTape } from '@/lib/domain/scanner/coach'
@@ -69,6 +70,10 @@ export function EscanerScreen({ onClose }: { onClose: () => void }) {
   const isPose = SCAN_POSE_GUIDE.some((g) => g.pose === step)
   const next = () => setStepIndex((i) => Math.min(STEPS.length - 1, i + 1))
   const back = () => (stepIndex === 0 ? onClose() : setStepIndex((i) => i - 1))
+  // «Atrás» vuelve al paso anterior; mientras analiza o guarda, espera (D-088).
+  useBackLayer(true, () => {
+    if (!analyzing && !saving) back()
+  })
 
   // El modelo pesa unos megas: se empieza a cargar mientras se responden las preguntas.
   useEffect(() => {
