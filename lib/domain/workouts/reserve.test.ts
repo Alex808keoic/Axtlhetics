@@ -82,6 +82,18 @@ test('D-086: sin ninguna repetición de margen se descansa 30 s más; cambiar de
   assert.equal(restRemaining(workout.rest, START)?.remainingSeconds, 90)
 })
 
+test('D-089: tras la última serie de la sesión aún se puede contestar y deshacer', () => {
+  const single: PlannedSession = { ...plan, exercises: [plan.exercises[1]] }
+  let workout = startWorkout({ ...proposal, session: single }, START)!
+  workout = completeSet(workout, START)
+  workout = completeSet(workout, START)
+  assert.equal(workout.rest, null, 'sin descanso: no queda nada')
+  assert.equal(reserveQuestionFor(workout), 0)
+  workout = setReserve(workout, 0, 'ninguna', START)
+  assert.equal(workout.rest, null, 'contestar no abre ningún descanso')
+  assert.equal(performedExercises(workout)[0].reserve, 'ninguna')
+})
+
 test('D-086: un descanso saltado o terminado no se alarga', () => {
   let workout = startWorkout(proposal, START)!
   workout = completeSet(workout, START)

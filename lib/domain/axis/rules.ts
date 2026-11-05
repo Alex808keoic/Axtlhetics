@@ -444,12 +444,26 @@ const WEEKLY_WEIGHT = 1.5
  */
 const YESTERDAY_WEIGHT = 5
 
+/** Cada grupo que cargó el deporte intenso de ayer (D-089): ni cuerpo completo los salva, y un partido de hoy pesa más. */
+const INTENSE_SPORT_YESTERDAY_WEIGHT = 3
+/** Cuánto pesa una zona trabajada entera en los últimos días (D-089). */
+const RECENT_WEIGHT = 4
+/** Repetir la zona de la última sesión de fuerza, por lejana que sea (D-089): así se alternan. */
+const LAST_FOCUS_WEIGHT = 2
+/** Con pocos días, cada sesión es de cuerpo completo: si no, una zona se queda sin trabajar (D-089). */
+const FULL_BODY_MAX_DAYS = 2
+const SPLIT_WITH_FEW_DAYS_WEIGHT = 4
+/** Con tres días o más se reparte por zonas; cuerpo completo queda como salida. */
+const FULL_BODY_WITH_MANY_DAYS_WEIGHT = 1.5
+
 /**
  * Elige el foco cuyos grupos musculares llevan más tiempo sin trabajarse, y evita
  * los grupos que carga una actividad fija de hoy. Desde D-034, entre focos
- * parecidos gana el que más va por detrás de su objetivo semanal de series. Desde
- * D-087 se mira la parte del foco trabajada ayer, en proporción: contar grupos
- * sueltos favorecía siempre al foco que tiene menos.
+ * parecidos gana el que más va por detrás de su objetivo semanal de series.
+ *
+ * Lo reciente y lo de ayer se miran en proporción (D-087, D-089): contar grupos
+ * sueltos favorecía siempre al foco que tiene menos, y el tren superior, con el
+ * doble de grupos, podía no salir nunca.
  */
 export function chooseFocus(
   facts: AxisFacts,
@@ -460,18 +474,32 @@ export function chooseFocus(
 
   const scored = FOCUS_ROTATION.map((focus) => {
     const groups = FOCUS_MUSCLE_GROUPS[focus]
-    const recentOverlap = groups.filter((group) =>
-      facts.recentMuscleGroups.includes(group),
-    ).length
+    const recent = groups.filter((group) => facts.recentMuscleGroups.includes(group)).length / groups.length
     const conflict = groups.filter((group) => avoid.includes(group)).length
     // Media de lo cumplido de la semana en esos grupos, con techo: pasarse no resta más.
     const weekly =
       groups.reduce((total, group) => total + Math.min(facts.weeklyFulfilment?.[group] ?? 0, 1.5), 0) / groups.length
     const yesterday = groups.filter((group) => facts.yesterdayMuscleGroups.includes(group)).length / groups.length
     const unreachable = blocked.includes(focus) ? 100 : 0
+    const sport = facts.yesterdayActivity?.intensity === 'alta' ? facts.yesterdayActivity.loadsMuscleGroups : []
+    const tired = groups.filter((group) => sport.includes(group)).length * INTENSE_SPORT_YESTERDAY_WEIGHT
+    const repeated = facts.lastStrengthFocus === focus ? LAST_FOCUS_WEIGHT : 0
+    const fewDays = facts.availableDaysPerWeek !== null && facts.availableDaysPerWeek <= FULL_BODY_MAX_DAYS
+    const split =
+      focus === 'cuerpo_completo'
+        ? fewDays ? 0 : FULL_BODY_WITH_MANY_DAYS_WEIGHT
+        : fewDays ? SPLIT_WITH_FEW_DAYS_WEIGHT : 0
     return {
       focus,
-      penalty: recentOverlap + yesterday * YESTERDAY_WEIGHT + conflict * 10 + weekly * WEEKLY_WEIGHT + unreachable,
+      penalty:
+        recent * RECENT_WEIGHT +
+        yesterday * YESTERDAY_WEIGHT +
+        tired +
+        repeated +
+        split +
+        conflict * 10 +
+        weekly * WEEKLY_WEIGHT +
+        unreachable,
     }
   })
 

@@ -290,6 +290,118 @@ test('D-087: un deporte que carga las piernas sigue mandando sobre la zona de ay
   assert.equal(chooseFocus(facts), 'tren_superior')
 })
 
+const UPPER_GROUPS = ['pecho', 'espalda', 'hombros', 'brazos'] as const
+const LOWER_GROUPS = ['piernas', 'gluteos'] as const
+
+// El lunes 7 es MONDAY: «ayer» es domingo (weekday 6).
+const sundayGame = (partial: Partial<ScheduledActivity> = {}) => basketball({ weekday: 6, ...partial })
+
+test('D-089: tras un deporte intenso de piernas no hay día fuerte ni se cargan, y se explica', () => {
+  const decision = decide(
+    contextWith({
+      profile: profile({ experience: 'avanzado' }),
+      recoveryInputs: recovery({ energy: 5, muscleFatigue: 1, stress: 1 }),
+      recentSessions: [session({ dayKey: '2026-09-03', focus: 'tren_inferior', muscleGroups: [...LOWER_GROUPS] })],
+      activities: [sundayGame()],
+    }),
+  )
+  assert.equal(decision.primary.session?.focus, 'tren_superior')
+  assert.notEqual(decision.primary.session?.intensity, 'alta')
+  assert.match(decision.primary.reason, /Ayer tuviste baloncesto: hoy dejo descansar piernas y glúteos\./)
+})
+
+test('D-089: aunque tocara pierna, el partido de ayer la aplaza', async () => {
+  const { chooseFocus } = await import('./rules')
+  const upperLast = [session({ dayKey: '2026-09-02', focus: 'tren_superior', muscleGroups: [...UPPER_GROUPS] })]
+  assert.equal(chooseFocus(deriveFacts(contextWith({ recentSessions: upperLast }))), 'tren_inferior')
+  assert.equal(chooseFocus(deriveFacts(contextWith({ recentSessions: upperLast, activities: [sundayGame()] }))), 'tren_superior')
+})
+
+test('D-089: tras el partido, tampoco cuerpo completo, aunque el tren superior sea reciente', async () => {
+  const { chooseFocus } = await import('./rules')
+  const facts = deriveFacts(
+    contextWith({
+      recentSessions: [session({ dayKey: SATURDAY_KEY, focus: 'tren_superior', muscleGroups: [...UPPER_GROUPS] })],
+      activities: [sundayGame()],
+    }),
+  )
+  assert.equal(chooseFocus(facts), 'tren_superior')
+})
+
+test('D-089: un partido de ayer cancelado o de baja intensidad no cuenta', () => {
+  const facts = (overrides: Partial<Parameters<typeof buildAxisContext>[0]>) => deriveFacts(contextWith(overrides))
+  assert.equal(facts({ activities: [sundayGame()] }).yesterdayActivity?.name, 'Baloncesto')
+  assert.equal(facts({ activities: [sundayGame()], cancelledYesterday: ['baloncesto'] }).yesterdayActivity, null)
+  assert.equal(facts({ activities: [sundayGame({ intensity: 'baja' })] }).yesterdayActivity, null)
+  assert.deepEqual(facts({ activities: [sundayGame({ intensity: 'baja' })] }).yesterdayMuscleGroups, [])
+})
+
+test('D-089: con un día de descanso en medio, se alterna con la última zona', async () => {
+  const { chooseFocus } = await import('./rules')
+  const facts = deriveFacts(
+    contextWith({
+      recentSessions: [
+        session({ dayKey: SATURDAY_KEY, focus: 'tren_inferior', muscleGroups: [...LOWER_GROUPS] }),
+        session({ id: 'older', dayKey: '2026-09-04', focus: 'tren_superior', muscleGroups: [...UPPER_GROUPS] }),
+      ],
+    }),
+  )
+  assert.equal(chooseFocus(facts), 'tren_superior')
+})
+
+test('D-089: lo último de fuerza se alterna aunque quede lejos, y los intervalos no cuentan', async () => {
+  const { chooseFocus } = await import('./rules')
+  const facts = deriveFacts(
+    contextWith({
+      recentSessions: [
+        session({ dayKey: '2026-08-20', focus: 'acondicionamiento', muscleGroups: ['piernas', 'core'] }),
+        session({ id: 'older', dayKey: '2026-08-10', focus: 'tren_inferior', muscleGroups: [...LOWER_GROUPS] }),
+      ],
+    }),
+  )
+  assert.equal(facts.lastStrengthFocus, 'tren_inferior')
+  assert.equal(chooseFocus(facts), 'tren_superior')
+})
+
+test('D-089: con uno o dos días a la semana, cuerpo completo; con tres o más, por zonas', async () => {
+  const { chooseFocus } = await import('./rules')
+  for (const availableWeekdays of [[0], [0, 3]] as const) {
+    const facts = deriveFacts(contextWith({ profile: profile({ availableWeekdays: [...availableWeekdays] }) }))
+    assert.equal(chooseFocus(facts), 'cuerpo_completo', `${availableWeekdays.length} días`)
+  }
+  const three = deriveFacts(contextWith({ profile: profile({ availableWeekdays: [0, 2, 4] }) }))
+  assert.equal(chooseFocus(three), 'tren_superior')
+  // Con el deporte de hoy cargando las piernas, ni con pocos días.
+  const game = deriveFacts(contextWith({ profile: profile({ availableWeekdays: [0, 3] }), activities: [basketball()] }))
+  assert.equal(chooseFocus(game), 'tren_superior')
+})
+
+test('D-089: en ocho semanas, ningún perfil deja el tren superior o las piernas sin trabajar', () => {
+  const cases = [
+    { goals: ['salud_general', 'movilidad', 'resistencia'], availableWeekdays: [0, 2, 4] },
+    { goals: ['hipertrofia', 'resistencia'], availableWeekdays: [0, 2, 4] },
+    { goals: ['hipertrofia'], availableWeekdays: [5] },
+    { goals: ['resistencia'], availableWeekdays: [0, 1, 3, 4] },
+  ] as const
+  for (const { goals, availableWeekdays } of cases) {
+    const person = profile({ goals: [...goals], availableWeekdays: [...availableWeekdays] })
+    const history: WorkoutSession[] = []
+    for (let day = 0; day < 56; day += 1) {
+      const now = new Date(2026, 8, 7 + day, 10, 0)
+      const decision = decide(buildAxisContext({ profile: person, recoveryInputs: null, recentSessions: [...history], activities: [], now }))
+      const plan = decision.primary.session
+      if (!plan) continue
+      history.unshift(
+        session({ id: `s${day}`, dayKey: buildAxisContext({ profile: person, recoveryInputs: null, recentSessions: [], activities: [], now }).dayKey, focus: plan.focus, muscleGroups: plan.muscleGroups, goal: plan.goal }),
+      )
+    }
+    const focuses = new Set(history.map((item) => item.focus))
+    const upper = focuses.has('tren_superior') || focuses.has('cuerpo_completo')
+    const lower = focuses.has('tren_inferior') || focuses.has('cuerpo_completo')
+    assert.ok(upper && lower, `${goals.join('+')}: ${[...focuses].join(', ')}`)
+  }
+})
+
 test('D-087: lo de hace más de un día no cuenta como ayer', () => {
   const facts = deriveFacts(
     contextWith({

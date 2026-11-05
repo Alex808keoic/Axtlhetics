@@ -10,13 +10,17 @@ import { activityOccursOn, isAvailableOn } from '../profile/types'
 import { addDays, daysBetween, weekdayOfKey } from '../shared/dates'
 import { computeRecoveryScore } from '../recovery/score'
 import { RECOVERY_BAND_THRESHOLDS } from '../recovery/weights'
-import type { MuscleGroup } from '../workouts/types'
+import type { MuscleGroup, SessionFocus } from '../workouts/types'
 import { EXERCISE_CATALOG } from '../workouts/catalog'
+import { isMuscleGroup } from './knowledge/muscles'
 import { computeTrainingLoad } from '../workouts/load'
 import { fulfilmentOf, weeklyVolume } from '../workouts/weekly-volume'
 import { latestScan, physiquePlan, PRIORITY_VOLUME_FACTOR } from '../scanner/physique'
 import type { ScheduledActivity } from '../profile/types'
 import type { AxisContext, AxisFacts } from './types'
+
+/** Las zonas entre las que se reparte la fuerza; movilidad e intervalos tienen sesión propia. */
+const STRENGTH_FOCUSES: readonly SessionFocus[] = ['tren_superior', 'tren_inferior', 'cuerpo_completo']
 
 /** Orden de exigencia, para poder comparar intensidades. */
 const INTENSITY_RANK: Record<string, number> = { baja: 0, media: 1, alta: 2 }
@@ -96,6 +100,20 @@ export function deriveFacts(context: AxisContext): AxisFacts {
   const todayActivity = hardest(todayActivities)
   const tomorrowActivity = hardest(tomorrowActivities)
 
+  // Lo que cargó el deporte de ayer sigue cansado hoy (D-089), salvo que no se jugara.
+  const yesterdayKey = addDays(dayKey, -1)
+  const cancelledYesterday = new Set((context.cancelledYesterday ?? []).map((name) => name.toLowerCase()))
+  const yesterdayDemanding = activities.filter(
+    (activity) =>
+      activityOccursOn(activity, yesterdayKey) && activity.intensity !== 'baja' && !cancelledYesterday.has(activity.name.toLowerCase()),
+  )
+  for (const activity of yesterdayDemanding) {
+    for (const group of activity.loadsMuscleGroups.filter(isMuscleGroup)) {
+      if (!yesterdayMuscleGroups.includes(group)) yesterdayMuscleGroups.push(group)
+    }
+  }
+  const lastStrengthFocus = completedSessions.find((session) => STRENGTH_FOCUSES.includes(session.focus))?.focus ?? null
+
   // Sin hora registrada no hay margen que calcular: AXIS sabe que hoy hay deporte
   // y cuánto carga, pero no cuánto falta para que empiece.
   const minutesUntilActivity =
@@ -132,6 +150,9 @@ export function deriveFacts(context: AxisContext): AxisFacts {
     daysSinceLastWorkout,
     recentMuscleGroups,
     yesterdayMuscleGroups,
+    yesterdayActivity: hardest(yesterdayDemanding),
+    lastStrengthFocus,
+    availableDaysPerWeek: profile?.availableWeekdays.length ?? null,
     isAvailableToday,
     todayActivity,
     todayActivities: [...todayActivities],

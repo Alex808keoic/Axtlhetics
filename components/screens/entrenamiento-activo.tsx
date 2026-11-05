@@ -6,6 +6,7 @@ import { ArrowLeft, Check, ChevronRight, Play, SkipForward, Undo2 } from 'lucide
 import { ExerciseFigure, hasExerciseFigure } from '@/components/exercise-figure'
 import { Confirmation } from '@/components/workout/confirmation'
 import { RestTimer } from '@/components/workout/rest-timer'
+import { useKeepScreenOn } from '@/components/workout/workout-attention'
 import { CountdownRing } from '@/components/workout/countdown-ring'
 import { ValueStepper } from '@/components/workout/value-stepper'
 import {
@@ -78,12 +79,16 @@ export function EntrenamientoActivo() {
     return () => window.clearInterval(timer)
   }, [startedAt])
 
-  // Cuando ya no quedan ejercicios, la sesión pasa sola al resumen.
+  useKeepScreenOn(activeWorkout !== null)
+
+  // Sin ejercicios por delante, la sesión pasa al resumen. Si lo último fue una serie,
+  // antes se puede contestar cómo fue o deshacerla: un toque de más no cierra el entreno (D-089).
   const finished = activeWorkout !== null && currentEntry(activeWorkout) === null
+  const closing = finished && canUndoLastSet(activeWorkout)
 
   useEffect(() => {
-    if (finished) void finishWorkout(null)
-  }, [finished, finishWorkout])
+    if (finished && !closing) void finishWorkout(null)
+  }, [finished, closing, finishWorkout])
 
   // El cronómetro llega a cero (D-054): vibra y la serie se registra sola.
   const workDone = activeWorkout !== null && workState(activeWorkout, now)?.finished === true
@@ -101,7 +106,25 @@ export function EntrenamientoActivo() {
   const doneExercises = activeWorkout.exerciseIndex
   const elapsed = Math.max(0, Math.round((now.getTime() - new Date(activeWorkout.startedAt).getTime()) / 1000))
 
-  if (!entry) return null
+  if (!entry) {
+    if (!closing) return null
+    const question = reserveFor(activeWorkout, setReserve)
+    return (
+      <section className="ax-enter px-5 pt-16 pb-12 text-center" aria-label="Última serie hecha">
+        <p className="text-overline font-semibold tracking-[0.16em] text-primary">ÚLTIMA SERIE HECHA</p>
+        <h1 className="mt-2 text-title-lg font-extrabold">Entreno completado</h1>
+        {question && <ReservePicker question={question} final />}
+        <button
+          type="button"
+          onClick={() => void finishWorkout(null)}
+          className="ax-press mt-6 flex h-14 w-full items-center justify-center rounded-full bg-primary text-callout font-semibold text-primary-foreground"
+        >
+          Terminar entrenamiento
+        </button>
+        <UndoButton onUndo={undoLastSet} />
+      </section>
+    )
+  }
 
   const rest = restState(activeWorkout, now)
   const work = workState(activeWorkout, now)
@@ -559,7 +582,7 @@ function WorkPanel({
 }
 
 /** «¿Cuántas más podrías haber hecho?» tras cada serie (D-052, D-055, D-084). Opcional. */
-function ReservePicker({ question }: { question: ReserveQuestion }) {
+function ReservePicker({ question, final = false }: { question: ReserveQuestion; final?: boolean }) {
   return (
     <div className="ax-fade mt-5 rounded-2xl bg-surface shadow-card p-4 text-left">
       <p className="text-footnote font-semibold">¿Cuántas más podrías haber hecho?</p>
@@ -588,7 +611,7 @@ function ReservePicker({ question }: { question: ReserveQuestion }) {
           {question.advice}
         </p>
       )}
-      {question.value === 'ninguna' && (
+      {question.value === 'ninguna' && !final && (
         <p className="ax-fade mt-3 text-footnote font-medium text-primary">Descansas 30 s más.</p>
       )}
     </div>

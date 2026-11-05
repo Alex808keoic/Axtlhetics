@@ -75,6 +75,14 @@ test('D-070: sesiones, objetivos, lo aprendido y la alimentación de hoy, con la
   assert.deepEqual(memory.nutrition, { todayKcal: 500, todayProteinG: 30, meals: 1, targetKcal: 2600, targetProteinG: [110, 140] })
 })
 
+test('D-089: AXIS recibe el esfuerzo que el usuario valoró', () => {
+  const rated = { ...session('2026-10-23'), perceivedEffort: null, effort: 4 }
+  const memory = buildAiMemory({ ...base, sessions: [rated] })
+  assert.equal(memory.recentSessions[0].effort, 4)
+  // Las sesiones antiguas siguen leyendo el campo que tenían.
+  assert.equal(buildAiMemory({ ...base, sessions: [session('2026-10-23')] }).recentSessions[0].effort, 7)
+})
+
 test('D-070: del escáner solo el resumen; nada de fotos ni medidas', () => {
   const memory = buildAiMemory({
     ...base,

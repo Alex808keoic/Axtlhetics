@@ -102,6 +102,21 @@ test('lo previsto, entero, sí cuenta como hecho', () => {
   assert.equal(lastPerformanceOf('remo', history)?.allSetsCompleted, true)
 })
 
+test('D-089: peso y repeticiones son de la misma serie, y subir de peso no es dejarlo a medias', () => {
+  const raised = session([exercise('remo', [set(12, 10), set(9, 12), set(9, 12)], { sets: 3, reps: 12 })])
+  const last = lastPerformanceOf('remo', [raised])
+  assert.equal(last?.weightKg, 12)
+  assert.equal(last?.reps, 9, 'no las 12 que hizo con 10 kg')
+  assert.equal(last?.allSetsCompleted, true)
+
+  // Quedarse corto con el mismo peso sí es no completarlo.
+  const short = session([exercise('remo', [set(12, 10), set(9, 10), set(9, 10)], { sets: 3, reps: 12 })])
+  assert.equal(lastPerformanceOf('remo', [short])?.allSetsCompleted, false)
+  // Y bajar de peso también.
+  const lowered = session([exercise('remo', [set(9, 12), set(9, 10), set(9, 10)], { sets: 3, reps: 12 })])
+  assert.equal(lastPerformanceOf('remo', [lowered])?.allSetsCompleted, false)
+})
+
 test('sin objetivo guardado —sesiones anteriores a D-019— se juzga como antes', () => {
   const legacy = [session([exercise('remo', [set(10, 5), set(10, 5)])])]
   assert.equal(lastPerformanceOf('remo', legacy)?.allSetsCompleted, true)

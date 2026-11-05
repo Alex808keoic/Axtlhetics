@@ -56,9 +56,16 @@ const LOADS = [5, 8, 10, 12]
 const set8x12: CompletedSet = { reps: 12, weightKg: 8, completed: true }
 const options = { loads: LOADS, targetReps: 12, maxReps: 50 }
 
-test('la siguiente serie: igual en el objetivo, más ligera con menos reserva, más pesada con más', () => {
+test('la siguiente serie: igual en el objetivo, más suave con menos reserva, más pesada con más', () => {
   assert.deepEqual(nextSetAfter(set8x12, 'una_dos', 'una_dos', options), { reps: 12, weightKg: 8 })
-  assert.deepEqual(nextSetAfter(set8x12, 'ninguna', 'una_dos', options), { reps: 12, weightKg: 5 })
+  // De 8 a 5 kg dejaría las series muy fáciles: mismo peso y menos repeticiones (D-089).
+  assert.deepEqual(nextSetAfter(set8x12, 'ninguna', 'una_dos', options), { reps: 10, weightKg: 8 })
+  assert.deepEqual(nextSetAfter({ reps: 12, weightKg: 12, completed: true }, 'ninguna', 'una_dos', options), { reps: 10, weightKg: 12 })
+  // Con un peso a un 10 % como mucho, sí se baja.
+  assert.deepEqual(
+    nextSetAfter({ reps: 12, weightKg: 20, completed: true }, 'ninguna', 'una_dos', { loads: [10, 18, 20], targetReps: 12, maxReps: 50 }),
+    { reps: 12, weightKg: 18 },
+  )
   // 8 × (12 + 3) → 1RM 12: con 10 kg caben 5 dejando 1, demasiado lejos de 12 → 2 repeticiones más.
   assert.deepEqual(nextSetAfter(set8x12, 'tres_mas', 'una_dos', options), { reps: 14, weightKg: 8 })
   // 10 × 8 sobrado → con 11 kg caben 6 dejando 1: cerca de las 8 previstas, se sube.
@@ -112,11 +119,12 @@ test('durante la sesión: la respuesta queda en la serie y prepara la siguiente,
   workout = completeSet(workout, START)
   workout = setReserve(workout, 0, 'ninguna')
   assert.equal(workout.entries[0].sets[0].reserve, 'ninguna')
-  assert.equal(workout.entries[0].weightKg, 5)
-  assert.equal(nextSetAdvice(workout, 0), 'Baja a 5 kg y 12 repeticiones en la siguiente.')
+  assert.equal(workout.entries[0].weightKg, 8)
+  assert.equal(workout.entries[0].reps, 10)
+  assert.equal(nextSetAdvice(workout, 0), 'Mismo peso, 10 repeticiones en la siguiente.')
   // Cambiar de respuesta parte de la serie hecha, no del ajuste anterior.
   workout = setReserve(workout, 0, 'una_dos')
-  assert.equal(workout.entries[0].weightKg, 8)
+  assert.equal(workout.entries[0].reps, 12)
   assert.equal(nextSetAdvice(workout, 0), null)
   assert.equal(workout.entries[0].reserve, undefined, 'la del ejercicio es la de la última serie')
   assert.ok(isActiveWorkout(JSON.parse(JSON.stringify(workout))))

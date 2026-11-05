@@ -1,7 +1,8 @@
 'use client'
 
-import type { ReactNode } from 'react'
+import { useEffect, useRef, type ReactNode } from 'react'
 import { CountdownRing } from '@/components/workout/countdown-ring'
+import { alertRestEnding } from '@/components/workout/workout-attention'
 import { REST_EXTENSION_SECONDS, type RestState } from '@/lib/domain/shared/rest'
 
 /**
@@ -32,6 +33,14 @@ export function RestTimer({
   /** Acciones secundarias propias de cada flujo, como deshacer la última serie. */
   children?: ReactNode
 }) {
+  // Avisa en el último segundo, una vez; alargar el descanso lo vuelve a preparar (D-089).
+  const alerted = useRef(false)
+  const ending = rest.remainingSeconds <= 1
+  useEffect(() => {
+    if (ending && !alerted.current) alertRestEnding()
+    alerted.current = ending
+  }, [ending])
+
   return (
     <section className="ax-enter" aria-label="Descanso">
       <p className="mt-7 text-overline font-semibold tracking-[0.16em] text-primary">DESCANSO</p>

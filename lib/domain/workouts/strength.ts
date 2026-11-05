@@ -84,14 +84,17 @@ export function targetReserveFor(plan: { intensity: string; deload?: boolean }):
 /** Repeticiones que se suman o restan cuando la reserva se aleja del objetivo y no hay otro peso. */
 export const IN_SESSION_REP_STEP = 2
 
+/** Dentro de la sesión se baja de peso solo si el siguiente es al menos este tanto del actual (D-089). */
+export const MIN_LIGHTER_SHARE = 0.9
+
 export type NextSet = { reps: number; weightKg: number | null }
 
 /**
  * Lo que toca en la siguiente serie tras contestar cuántas quedaban (D-055).
  *
  * - Lo contestado coincide con el objetivo: se repite la serie.
- * - Quedaban menos: el peso más ligero que tenga el usuario con las mismas
- *   repeticiones o, si no hay otro, 2 repeticiones menos.
+ * - Quedaban menos: el peso anterior con las mismas repeticiones, si está a un
+ *   10 % como mucho; si no, 2 repeticiones menos con el mismo peso (D-089).
  * - Quedaban más: el siguiente peso, con las repeticiones que caben dejando la
  *   reserva objetivo, si no bajan de 2 menos que las previstas; si no, 2
  *   repeticiones más.
@@ -113,7 +116,8 @@ export function nextSetAfter(
   const weight = set.weightKg
   if (diff < 0) {
     const lighter = weight === null ? undefined : [...loads].reverse().find((kg) => kg < weight)
-    if (lighter !== undefined) return { reps: set.reps, weightKg: lighter }
+    // Un salto grande dejaría las series muy fáciles: entonces, mismo peso y menos repeticiones (D-089).
+    if (lighter !== undefined && weight !== null && lighter >= weight * MIN_LIGHTER_SHARE) return { reps: set.reps, weightKg: lighter }
     return { reps: Math.max(1, set.reps - IN_SESSION_REP_STEP), weightKg: weight }
   }
 

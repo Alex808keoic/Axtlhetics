@@ -359,10 +359,14 @@ type AxtlheticsStore = {
 
 const StoreContext = createContext<AxtlheticsStore | null>(null)
 
+const CLOCK_TICK_MS = 5 * 60_000
+
 export function AxtlheticsProvider({ children }: { children: ReactNode }) {
   const [status, setStatus] = useState<AppStatus>('loading')
   const [error, setError] = useState<string | null>(null)
   const [today, setToday] = useState<DayKey>('1970-01-01')
+  // Solo hace que AXIS vuelva a mirar la hora: si el deporte de hoy ya pasó, o está cerca (D-089).
+  const [clockTick, setClockTick] = useState(0)
 
   const [profile, setProfile] = useState<UserProfile | null>(null)
   const [activities, setActivities] = useState<ScheduledActivity[]>([])
@@ -558,8 +562,16 @@ export function AxtlheticsProvider({ children }: { children: ReactNode }) {
     document.addEventListener('visibilitychange', onVisible)
     window.addEventListener('focus', onVisible)
 
+    // Con la app abierta y a la vista, el día también cambia, y AXIS mira la hora (D-089).
+    const clock = window.setInterval(() => {
+      if (document.visibilityState !== 'visible') return
+      if (todayKey() !== loadedDayRef.current) void load()
+      else setClockTick(Date.now())
+    }, CLOCK_TICK_MS)
+
     return () => {
       cancelled = true
+      window.clearInterval(clock)
       document.removeEventListener('visibilitychange', onVisible)
       window.removeEventListener('focus', onVisible)
     }
@@ -606,6 +618,7 @@ export function AxtlheticsProvider({ children }: { children: ReactNode }) {
       recentSessions: sessions,
       activities,
       cancelledToday: memory.cancelledActivities,
+      cancelledYesterday: yesterdayMemory?.cancelledActivities ?? [],
       availableMinutesToday: memory.availableMinutes ?? null,
       movedFromYesterday,
       withoutEquipmentToday: memory.withoutEquipment ?? false,
@@ -623,6 +636,8 @@ export function AxtlheticsProvider({ children }: { children: ReactNode }) {
     recoveryScore,
     sessions,
     activities,
+    clockTick,
+    yesterdayMemory,
     memory.cancelledActivities,
     memory.availableMinutes,
     movedFromYesterday,

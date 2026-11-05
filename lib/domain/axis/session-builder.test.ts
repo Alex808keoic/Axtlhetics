@@ -729,6 +729,54 @@ test('la movilidad articular nunca se elige como entrenamiento', () => {
   }
 })
 
+// ---------------------------------------------------------------------------
+// D-089: dominar un ejercicio hace avanzar
+// ---------------------------------------------------------------------------
+
+function mastered(id: string, reps: number, weightKg: number | null = null): WorkoutSession {
+  return performed(id, Array.from({ length: 3 }, () => ({ reps, weightKg, completed: true })))
+}
+
+test('D-089: se sube de variante al dominarla, también por encima del nivel de partida', () => {
+  const superman = exercise('superman')
+  assert.equal(superman.difficulty, 1)
+  assert.equal(adaptDifficulty(superman, 1, { history: [] }).id, 'superman', 'sin dominar, se queda')
+  const history = [mastered('superman', repCapFor(superman, 'hipertrofia'))]
+  assert.equal(adaptDifficulty(superman, 1, { history, goal: 'hipertrofia' }).id, 'remo-unilateral')
+  // Y no vuelve atrás: el remo, por encima del objetivo, se queda porque el superman ya se dominó.
+  assert.equal(adaptDifficulty(exercise('remo-unilateral'), 1, { history, goal: 'hipertrofia' }).id, 'remo-unilateral')
+})
+
+test('D-089: una sesión ligera baja a la variante accesible, y la descarga no sube', () => {
+  const superman = exercise('superman')
+  const history = [mastered('superman', repCapFor(superman, 'hipertrofia'))]
+  assert.equal(adaptDifficulty(exercise('remo-unilateral'), 1, { history, goal: 'hipertrofia', mode: 'light' }).id, 'superman')
+  assert.equal(adaptDifficulty(superman, 1, { history, goal: 'hipertrofia', mode: 'light' }).id, 'superman')
+  assert.equal(adaptDifficulty(superman, 1, { history, goal: 'hipertrofia', mode: 'deload' }).id, 'superman')
+  assert.equal(adaptDifficulty(exercise('remo-unilateral'), 1, { history, goal: 'hipertrofia', mode: 'deload' }).id, 'remo-unilateral')
+})
+
+test('D-089: lo dominado sin variante más difícil deja su hueco a otro del patrón', () => {
+  const base = { focus: 'tren_superior' as const, intensity: 'moderada' as const, availableMinutes: 45, goals: ['hipertrofia' as const], goal: 'hipertrofia' as const, experience: 'principiante' as const, today: TODAY }
+  const press = exercise('press-hombro-unilateral')
+  assert.ok(ids(buildSession(base)).includes('press-hombro-unilateral'), 'de partida, sale')
+  const history = [
+    performed('press-hombro-unilateral', Array.from({ length: 3 }, () => ({ reps: repCapFor(press, 'hipertrofia'), weightKg: 5, completed: true })), { dayKey: '2026-09-18' }),
+  ]
+  const after = ids(buildSession({ ...base, history }))
+  assert.ok(!after.includes('press-hombro-unilateral'), after.join(', '))
+  assert.ok(after.some((id) => patternOf(exercise(id)) === 'empuje_vertical'), `sigue habiendo empuje vertical: ${after.join(', ')}`)
+})
+
+test('D-089: las piernas sin peso no se trabajan a repeticiones bajas; con peso suficiente, sí', () => {
+  const session = buildSession({ focus: 'tren_inferior', intensity: 'moderada', availableMinutes: 60, goals: ['fuerza'], goal: 'fuerza', experience: 'intermedio' })
+  for (const item of session.exercises.filter(isMainExercise)) {
+    if (exercise(item.exerciseId).category === 'piernas' && !usesLoad(exercise(item.exerciseId)) && !item.isTimed) {
+      assert.ok(item.reps >= 8, `${item.name}: ${item.reps}`)
+    }
+  }
+})
+
 const FULL_GEAR: UserEquipment = {
   items: ['barra_dominadas'],
   weights: [5, 8, 10, 12, 16, 20].map((kg) => ({ kind: 'mancuerna' as const, kg, pair: true })),
@@ -788,6 +836,22 @@ test('D-086: lo ya trabajado está caliente: tras la sentadilla con pesa, la zan
   assert.ok(main.indexOf('sentadilla-con-pesa') < main.indexOf('zancadas'))
   const lunge = exercises.findIndex((item) => item.exerciseId === 'zancadas')
   assert.notEqual(exercises[lunge - 1].warmupPart, 'aproximacion')
+})
+
+test('D-089: tras subir de peso en la sesión, la siguiente no pide más de lo que se pudo', () => {
+  const gear = FULL_GEAR
+  const history = [
+    performed('remo-unilateral', [
+      { reps: 12, weightKg: 10, completed: true, reserve: 'tres_mas' },
+      { reps: 9, weightKg: 12, completed: true, reserve: 'una_dos' },
+      { reps: 9, weightKg: 12, completed: true, reserve: 'una_dos' },
+    ]),
+  ]
+  history[0].exercises[0].targetSets = 3
+  history[0].exercises[0].targetReps = 12
+  const next = suggestWorkFor(exercise('remo-unilateral'), { intensity: 'moderada', goal: 'hipertrofia', experience: 'intermedio', gear, history })
+  assert.ok(!(next.weightKg === 12 && next.reps === 12), JSON.stringify(next))
+  assert.ok(next.weightKg === 10 || next.reps <= 10, JSON.stringify(next))
 })
 
 test('D-086: un salto que abre la sesión lleva antes unas sentadillas, salvo que carguen una zona a cuidar', () => {

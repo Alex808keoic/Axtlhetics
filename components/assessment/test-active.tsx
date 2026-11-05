@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react'
 import { ArrowLeft } from 'lucide-react'
 import { RestTimer } from '@/components/workout/rest-timer'
+import { useKeepScreenOn } from '@/components/workout/workout-attention'
 import { ValueStepper } from '@/components/workout/value-stepper'
 import { assessmentRestState, currentSide, currentTest } from '@/lib/domain/assessment/assessment'
 import {
@@ -47,6 +48,7 @@ export function TestActive({
   onExtendRest: () => void
   onExit: () => void
 }) {
+  useKeepScreenOn(true)
   const [now, setNow] = useState(() => new Date())
   useEffect(() => {
     const timer = window.setInterval(() => setNow(new Date()), 1000)

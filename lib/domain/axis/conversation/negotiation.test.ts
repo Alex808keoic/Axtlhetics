@@ -512,7 +512,8 @@ test('con sesiones recientes de otra zona, se afirma solo lo que registran esas 
 })
 
 test('una sesión fuera de la ventana no cuenta como historial reciente', () => {
-  const briefing = briefingWith({}, [session({ dayKey: '2026-09-01' })])
+  // Fue de pierna: lo que hoy tocaría es tren superior (D-089), y «piernas» es un cambio.
+  const briefing = briefingWith({}, [session({ dayKey: '2026-09-01', focus: 'tren_inferior', muscleGroups: ['piernas', 'gluteos'] })])
   const verdict = evaluateChange(parseChangeRequest('quiero hacer piernas'), briefing)
   assert.match(verdict.text, /^No tengo sesiones tuyas de estos días/)
 })

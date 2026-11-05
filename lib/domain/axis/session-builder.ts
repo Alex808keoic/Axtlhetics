@@ -142,7 +142,8 @@ export const LIGHT_BODYWEIGHT_REPS = 12
  */
 export function lightLoadFor(exercise: Exercise, gear: UserEquipment = LEGACY_EQUIPMENT): boolean {
   if (exercise.work.isTimed) return false
-  if (!usesLoad(exercise)) return exercise.work.reps >= LIGHT_BODYWEIGHT_REPS
+  // Las piernas sin peso tampoco dan para repeticiones bajas: 6 zancadas no son fuerza (D-089).
+  if (!usesLoad(exercise)) return exercise.work.reps >= LIGHT_BODYWEIGHT_REPS || exercise.category === 'piernas'
   if (exercise.startLoadKg === undefined) return false
   const loads = loadsFor(exercise, gear)
   const heaviest = loads[loads.length - 1]
@@ -841,16 +842,25 @@ export function adaptDifficulty(
     catalog?: readonly Exercise[]
     gear?: UserEquipment
     goal?: TrainingGoal
+    /**
+     * `light`: se baja a la variante accesible aunque se domine (D-008) y solo se
+     * sube por debajo del objetivo. `deload`: se sigue en la variante que tocaba,
+     * sin subir (D-031).
+     */
+    mode?: 'normal' | 'light' | 'deload'
   } = {},
 ): Exercise {
-  const { history = [], catalog, gear = LEGACY_EQUIPMENT, goal = DEFAULT_GOAL } = options
+  const { history = [], catalog, gear = LEGACY_EQUIPMENT, goal = DEFAULT_GOAL, mode = 'normal' } = options
   const equipment = availableEquipment(gear)
 
   if (exercise.difficulty > target) {
-    return variantOf(exercise, 'easier', catalog, equipment)
+    const easier = variantOf(exercise, 'easier', catalog, equipment)
+    // Lo que ya se dominó no se vuelve a hacer: de ahí se subió a esta (D-089).
+    if (mode === 'light' || easier === exercise || !hasMastered(easier, history, gear, goal)) return easier
   }
-  // Solo se sube de variante cuando el ejercicio actual ya se domina.
-  if (exercise.difficulty < target && hasMastered(exercise, history, gear, goal)) {
+  if (mode === 'deload') return exercise
+  // Se sube de variante al dominarla, también por encima del nivel de partida (D-089).
+  if ((mode === 'normal' || exercise.difficulty < target) && hasMastered(exercise, history, gear, goal)) {
     return variantOf(exercise, 'harder', catalog, equipment)
   }
   return exercise
@@ -1046,6 +1056,7 @@ function selectByPattern(
   target: Difficulty,
   usage: ReadonlyMap<string, ExerciseUsage>,
   lagging: readonly Subgroup[] = [],
+  exhausted: (exercise: Exercise) => boolean = () => false,
 ): Exercise[] {
   const ordered = rotationOrder(pool, target, adapt, usage, lagging)
   const slots: (Exercise | null)[] = template.slice(0, count).map(() => null)
@@ -1063,12 +1074,13 @@ function selectByPattern(
       })
       .map((exercise, order) => ({
         exercise,
+        spent: exhausted(exercise) ? 1 : 0,
         repeated: usedPatterns.has(patternOf(exercise)!) ? 1 : 0,
         fallback: isPatternFallback(exercise) ? 1 : 0,
         timed: exercise.work.isTimed && !isIsolation(exercise) ? 1 : 0,
         order,
       }))
-      .sort((a, b) => a.repeated - b.repeated || a.fallback - b.fallback || a.timed - b.timed || a.order - b.order)
+      .sort((a, b) => a.spent - b.spent || a.repeated - b.repeated || a.fallback - b.fallback || a.timed - b.timed || a.order - b.order)
     for (const { exercise } of candidates) {
       const adapted = adapt(exercise)
       if (taken.has(adapted.id)) continue
@@ -1213,19 +1225,32 @@ export function buildSession(options: SessionBuildOptions): PlannedSession {
       }
       return level
     }
-    const variant = adaptDifficulty(exercise, target, { history: deload ? [] : history, catalog, gear, goal })
+    const variant = adaptDifficulty(exercise, target, {
+      history,
+      catalog,
+      gear,
+      goal,
+      mode: deload ? 'deload' : intensity === 'ligera' ? 'light' : 'normal',
+    })
     // Una variante que carga una zona a cuidar no sustituye a la que no la carga (D-051).
     return cares(variant) ? variant : exercise
+  }
+  // Dominado y sin variante más difícil: ya no da más de sí, mejor otro de su patrón si lo hay (D-089).
+  const exhausted = (exercise: Exercise): boolean => {
+    if (deload) return false
+    const variant = adapt(exercise)
+    return hasMastered(variant, history, gear, goal) && variantOf(variant, 'harder', catalog, equipment) === variant
   }
   // Los principales del bloque que se pueden hacer hoy, en su variante del día (D-057).
   const anchors = anchorExerciseIds
     .map((id) => pool.find((exercise) => exercise.id === id))
     .filter((exercise): exercise is Exercise => exercise !== undefined)
+    .filter((exercise) => !exhausted(exercise))
     .map(adapt)
   const assemble = (count: number): PlannedSession => {
     const template = SESSION_TEMPLATES[focus]
     const picked = template
-      ? selectByPattern(pool, focus, template, count, adapt, target, usage, lagging)
+      ? selectByPattern(pool, focus, template, count, adapt, target, usage, lagging, exhausted)
       : selectExercises(pool, focus, count, adapt, target, usage, lagging)
     const selected = withAnchors(picked, anchors)
 

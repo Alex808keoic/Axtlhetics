@@ -34,8 +34,9 @@ import { availableEquipment } from '../workouts/equipment'
 import { loadsCareZone } from '../workouts/joints'
 import { listNames } from '../shared/text'
 import type { PlannedSession, SessionFocus, SessionIntensity } from '../workouts/types'
-import { SESSION_FOCUS_LABELS } from '../workouts/types'
+import { FOCUS_MUSCLE_GROUPS, MUSCLE_GROUP_LABELS, SESSION_FOCUS_LABELS } from '../workouts/types'
 import { deriveFacts, MIN_SESSION_MINUTES } from './facts'
+import { isMuscleGroup } from './knowledge/muscles'
 import {
   chooseFocus,
   describeFocus,
@@ -97,6 +98,7 @@ export function decide(context: AxisContext): AxisDecision {
   const weekFactor = training ? weeklyGoalFactor(week, goal) : null
   const careFactor = training ? careZonesFactor(context.profile?.careZones ?? []) : null
   const screeningFactor = training ? (clearance ? healthFactor() : rampUp ? rampUpFactor() : null) : null
+  const sportFactor = training ? yesterdaySportFactor(facts, plan) : null
   const [firstRule, ...otherRules] = outcome.factors
   const factors = [
     ...(deload && training ? [deloadFactor()] : []),
@@ -104,6 +106,7 @@ export function decide(context: AxisContext): AxisDecision {
     // Lo que se cuida va antes que lo demás: es seguridad (D-051).
     ...(careFactor ? [careFactor] : []),
     ...(screeningFactor ? [screeningFactor] : []),
+    ...(sportFactor ? [sportFactor] : []),
     // Por qué hoy se aprieta (D-048), antes que el reparto de la semana.
     ...(hard ? [hardDayFactor()] : []),
     // Qué toca hoy de la semana (D-047), justo después de por qué se entrena así.
@@ -127,6 +130,26 @@ export function decide(context: AxisContext): AxisDecision {
   const alternatives = buildAlternatives(context, facts, plan, outcome.type, primary)
 
   return { primary, alternatives }
+}
+
+/**
+ * «Ayer tuviste básquet: hoy dejo descansar piernas y glúteos» (D-089). Solo con
+ * un deporte de intensidad alta y si la sesión de hoy de verdad evita lo que cargó.
+ */
+function yesterdaySportFactor(facts: AxisFacts, plan: DayPlan): AxisFactor | null {
+  const activity = facts.yesterdayActivity
+  if (activity?.intensity !== 'alta') return null
+  const loaded = activity.loadsMuscleGroups.filter(isMuscleGroup)
+  if (loaded.length === 0) return null
+  const focus = focusForGoal(plan.goal) ?? chooseFocus(facts, plan.blocked)
+  if (FOCUS_MUSCLE_GROUPS[focus].some((group) => loaded.includes(group))) return null
+  const names = listNames(loaded.map((group) => MUSCLE_GROUP_LABELS[group].toLowerCase()))
+  return {
+    key: 'activity_yesterday',
+    label: activity.name,
+    detail: `Ayer tuviste ${activity.name.toLowerCase()}: hoy dejo descansar ${names}.`,
+    direction: 'limits',
+  }
 }
 
 /** Una respuesta de salud con «sí» (D-058). Nunca diagnostica. */
@@ -182,7 +205,9 @@ function goalOfTheDay(
   week: readonly GoalProgress[],
   blocked: readonly SessionFocus[],
 ): TrainingGoal {
-  const legsBusy = muscleGroupsToAvoid(facts).includes('piernas')
+  // Tras un deporte intenso de piernas (D-089), los intervalos tampoco tocan.
+  const legsTired = facts.yesterdayActivity?.intensity === 'alta' && facts.yesterdayActivity.loadsMuscleGroups.includes('piernas')
+  const legsBusy = legsTired || muscleGroupsToAvoid(facts).includes('piernas')
   const resting = !isTrainingRecommendation(type)
   // Sin intervalos posibles por una zona a cuidar, no toca resistencia (D-051).
   const noConditioning = blocked.includes('acondicionamiento')

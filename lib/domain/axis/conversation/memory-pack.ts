@@ -81,7 +81,7 @@ export function buildAiMemory(input: AxisAiMemoryInput): AxisAiMemory {
     .filter((s) => s.status === 'completed' && s.dayKey <= input.today && daysBetween(s.dayKey, input.today) <= 14)
     .sort((a, b) => b.dayKey.localeCompare(a.dayKey))
     .slice(0, MEMORY_SESSIONS)
-    .map((s) => ({ dayKey: s.dayKey, title: s.title, minutes: Math.round(s.durationSeconds / 60), effort: s.perceivedEffort }))
+    .map((s) => ({ dayKey: s.dayKey, title: s.title, minutes: Math.round(s.durationSeconds / 60), effort: s.effort ?? s.perceivedEffort }))
 
   const nameOf = (id: string) => input.catalog.find((exercise) => exercise.id === id)?.name ?? id
   const profile = input.profile

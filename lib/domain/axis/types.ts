@@ -12,7 +12,7 @@ import type { Assessment } from '../assessment/types'
 import type { ScanRecord } from '../scanner/types'
 import type { RecoveryInputs, RecoveryScore } from '../recovery/types'
 import type { DayKey } from '../shared/dates'
-import type { Exercise, MuscleGroup, PlannedSession, WorkoutSession } from '../workouts/types'
+import type { Exercise, MuscleGroup, PlannedSession, SessionFocus, WorkoutSession } from '../workouts/types'
 import type { TrainingLoadBand } from '../workouts/load'
 import type { PhysiquePlan } from '../scanner/physique'
 
@@ -46,6 +46,8 @@ export type AxisFactorKey =
   | 'recent_muscle_groups'
   | 'scheduled_activity'
   | 'activity_tomorrow'
+  /** El deporte exigente de ayer decide qué se deja descansar hoy (D-089). */
+  | 'activity_yesterday'
   | 'availability'
   | 'goal'
   | 'session_duration'
@@ -135,6 +137,8 @@ export type AxisContext = {
    * para la decisión de hoy.
    */
   cancelledToday: readonly string[]
+  /** Los que ayer no ocurrieron (D-089): un partido cancelado no cansa las piernas de hoy. */
+  cancelledYesterday?: readonly string[]
   catalog: readonly Exercise[]
   /**
    * Minutos que el usuario ha dicho tener hoy, confirmados en la conversación
@@ -206,8 +210,17 @@ export type AxisFacts = {
   daysSinceLastWorkout: number | null
   /** Grupos trabajados en las sesiones recientes, del más reciente al más antiguo. */
   recentMuscleGroups: MuscleGroup[]
-  /** Los trabajados ayer u hoy (D-087): piden más descanso que los de hace dos o tres días. */
+  /**
+   * Los trabajados ayer u hoy (D-087) y los que cargó el deporte de ayer (D-089):
+   * piden más descanso que los de hace dos o tres días.
+   */
   yesterdayMuscleGroups: MuscleGroup[]
+  /** El deporte más exigente de ayer, si no fue de intensidad baja (D-089). */
+  yesterdayActivity: ScheduledActivity | null
+  /** La zona de la última sesión de fuerza, por lejana que sea (D-089). */
+  lastStrengthFocus: SessionFocus | null
+  /** Días a la semana que el usuario puede entrenar. `null` sin perfil. */
+  availableDaysPerWeek: number | null
   isAvailableToday: boolean
   /** Actividad más exigente de hoy, si la hay. */
   todayActivity: ScheduledActivity | null

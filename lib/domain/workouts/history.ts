@@ -70,16 +70,33 @@ export function lastPerformanceOf(
   const entry = lastPerformedEntry(exerciseId, history)
   if (!entry) return null
   const { session, performed } = entry
+  const weightKg = maxWeight(performed.sets)
+  // Peso y repeticiones de la misma serie (D-089): 10 kg × 12 y luego 12 kg × 9 no es 12 kg × 12.
+  const heaviest = performed.sets.filter((set) => set.weightKg === weightKg)
 
   return {
-    weightKg: maxWeight(performed.sets),
-    reps: Math.max(...performed.sets.map((set) => set.reps)),
-    allSetsCompleted: metTarget(performed),
+    weightKg,
+    reps: Math.max(...heaviest.map((set) => set.reps)),
+    allSetsCompleted: metTarget(performed) || metTargetRaisingWeight(performed),
     sets: performed.sets.length,
     effort: session.effort ?? null,
     reserve: performed.reserve ?? performed.sets[performed.sets.length - 1]?.reserve ?? null,
     capacity: capacityOf(performed.sets),
   }
+}
+
+/**
+ * Se hicieron todas las series y las que se quedaron por debajo de las
+ * repeticiones previstas fue por subir de peso en la sesión (D-055): eso no es
+ * dejar el ejercicio a medias (D-089).
+ */
+function metTargetRaisingWeight(performed: PerformedExercise): boolean {
+  const { sets, targetReps, targetSets } = performed
+  const first = sets[0]?.weightKg
+  if (first === null || first === undefined || targetReps === undefined) return false
+  if (!sets.every((set) => set.completed)) return false
+  if (targetSets !== undefined && sets.length < targetSets) return false
+  return sets.every((set) => set.reps >= targetReps || (set.weightKg ?? 0) > first)
 }
 
 function capacityOf(sets: readonly CompletedSet[]): LastPerformance['capacity'] {

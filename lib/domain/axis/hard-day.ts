@@ -59,6 +59,8 @@ export function isHardDay(input: HardDayInput): boolean {
   // Nada exigente hoy ni mañana: llegar fundido a un partido es peor que no apretar hoy.
   const demanding = (activity: { intensity: string }) => activity.intensity !== 'baja'
   if (facts.todayActivities.some(demanding) || facts.tomorrowActivities.some(demanding)) return false
+  // Ni ayer (D-089): tras un partido no se aprieta.
+  if (facts.yesterdayActivity) return false
 
   // Nunca dos seguidos.
   const yesterday = addDays(today, -1)

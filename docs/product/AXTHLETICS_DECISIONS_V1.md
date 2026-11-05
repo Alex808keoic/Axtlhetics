@@ -2680,6 +2680,39 @@ Lógica, datos, textos, navegación, funciones y las figuras de ejercicios. Solo
 
 ---
 
+## D-089 — Auditoría del entrenamiento: deporte de ayer, progresión y reparto
+
+**Fecha:** 2026-11-05 · **Estado:** aprobada e implementada · Decidido por Alex («haz todos»), tras una auditoría con simulaciones de hasta 16 semanas. **Cambia** D-008 y D-034 (variantes y zona del día), D-055 (ajuste dentro de la sesión) y D-073 (piernas sin peso en fuerza).
+
+### Qué se entrena
+
+- **El deporte de ayer cuenta.** Un deporte de intensidad media o alta quita el día fuerte y suma sus grupos a lo trabajado ayer. Con uno de intensidad alta, además, AXIS lo explica («Ayer tuviste básquet: hoy dejo descansar piernas y glúteos») y, si cargó las piernas, no tocan intervalos. Si ayer se dijo que no se jugaba, no cuenta.
+- **El reparto se mira en proporción** (`chooseFocus`): antes se contaban grupos sueltos, y el tren superior, con el doble, podía no salir nunca.
+- **Se alterna con la última zona de fuerza**, por lejana que quede (`lastStrengthFocus`).
+- **Con 1 o 2 días a la semana, cuerpo completo**, salvo que el deporte lo impida. Con 3 o más, por zonas.
+
+### Cómo se progresa
+
+- **Dominar un ejercicio hace subir de variante**, también por encima del nivel de partida (`adaptDifficulty`): antes se quedaba en el techo de repeticiones para siempre. No se vuelve a lo ya dominado.
+- **Una sesión ligera sigue bajando** a la variante accesible; **la descarga se queda** en la que tocaba, sin subir.
+- **Lo dominado sin variante más difícil cede su hueco** a otro del mismo patrón, si lo hay, y deja de ser principal del bloque (`exhausted`).
+- **Peso y repeticiones de la última vez son de la misma serie**, y subir de peso en la sesión no cuenta como dejar el ejercicio a medias. Antes, 10 kg × 12 y 12 kg × 9 pedía 12 kg × 12 la vez siguiente.
+- **Sin repeticiones de margen, solo se baja de peso si el siguiente está a un 10 % como mucho** (`MIN_LIGHTER_SHARE`). Si no, mismo peso y 2 repeticiones menos: de 12 a 10 kg dejaba las series demasiado fáciles.
+- **Las piernas sin peso no van a repeticiones bajas** en fuerza: 6 zancadas no son fuerza.
+
+### Durante el entreno
+
+- **Al acabar el descanso vibra y suena**, en el último segundo. También en el test de evolución.
+- **La pantalla no se apaga** mientras dura el entrenamiento o el test (Wake Lock). Lo que el navegador no permita, simplemente no ocurre (`components/workout/workout-attention.ts`).
+- **La última serie ya no cierra el entreno al instante:** se puede contestar «¿Cuántas más podrías haber hecho?», deshacerla o terminar. Si lo último fue saltar un ejercicio, pasa al resumen como siempre.
+
+### AXIS
+
+- **La memoria de la IA recibe el esfuerzo valorado** (`effort`): leía `perceivedEffort`, que en las sesiones reales siempre está vacío.
+- **AXIS vuelve a mirar la hora** cada 5 minutos con la app a la vista, y el cambio de día también se detecta sin salir de la app.
+
+---
+
 ## Decisiones pendientes
 
 Nada de lo que sigue debe inventarse ni resolverse sin aprobación explícita de Alex.
