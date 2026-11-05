@@ -2627,6 +2627,23 @@ Lógica, datos, textos, navegación, funciones y las figuras de ejercicios. Solo
 
 ---
 
+## D-086 — Calentamiento y descansos: cada cosa en su momento
+
+**Fecha:** 2026-11-05 · **Estado:** aprobada e implementada · Decidido por Alex («sí, haz los 4»), tras revisar con datos del motor los descansos y el calentamiento. **Cambia** D-045 (dónde van las series de aproximación), D-050 (cómo se calcula la duración) y D-019 (el descanso tras contestar).
+
+**Por qué:** las series de aproximación iban todas al principio, así que el tercer ejercicio se calentaba 15-20 minutos antes de trabajarlo, y se empezaba a trabajar sin descanso. El calentamiento tampoco se adaptaba al tiempo: en una sesión de 30 minutos ocupaba 10 de 24, y las series bajaban a 2 con 6 minutos sin usar.
+
+- **Aproximación justo antes de su ejercicio** (`withApproachSets`), con **45 s** de descanso antes de la primera serie. Dentro de la rampa (D-063) no se para.
+- **Solo la primera de cada familia de movimiento** (`warmupFamilyOf`: empuje, tirón, rodilla y cadera), tres como mucho. Lo ya trabajado de esa familia cuenta como caliente.
+- **Sobra con 10 o más repeticiones** si no hay un peso más ligero ni una variante más fácil: las primeras repeticiones de la serie ya calientan.
+- **Un salto que abre la sesión** lleva antes 5 sentadillas, porque al mover la aproximación se quedaba sin preparación específica. Si la sentadilla carga una zona a cuidar, no se añade.
+- **En 30 minutos o menos** el calentamiento se recorta antes de quitar series: activación de 30 s por ejercicio, movilidad de 60 s y una aproximación. No se recortan los correctivos, el equilibrio de quien salta ni la movilidad de quien la tiene como objetivo.
+- **Duración realista** (`estimateMinutes`): entre ejercicios cuenta el descanso que salta en la app, con un mínimo de 45 s de cambio, o de 20 s en el calentamiento. Tras el último ejercicio no se cuenta nada.
+- **Sin repeticiones de margen, 30 s más de descanso** (`FAILURE_EXTRA_REST_SECONDS`). Se aplica al descanso en curso, se avisa en pantalla y cambiar de respuesta lo devuelve. Un descanso saltado o terminado no se alarga.
+- **No cambia:** los descansos por objetivo, la rampa de ~50 % y ~75 %, ni que el calentamiento no cuente como entrenamiento.
+
+---
+
 ## Decisiones pendientes
 
 Nada de lo que sigue debe inventarse ni resolverse sin aprobación explícita de Alex.

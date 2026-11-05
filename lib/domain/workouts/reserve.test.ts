@@ -8,6 +8,7 @@ import test from 'node:test'
 
 import type { AxisProposal } from '../axis/types'
 import { suggestWorkFor } from '../axis/session-builder'
+import { restRemaining } from '../shared/rest'
 import { findExercise } from './catalog'
 import {
   completeSet,
@@ -61,6 +62,34 @@ test('se pregunta tras cada serie de un ejercicio del entrenamiento y por repeti
   workout = completeSet(workout, START)
   workout = completeSet(workout, START) // plancha 2/2
   assert.equal(reserveQuestionFor(workout), null, 'por tiempo no')
+})
+
+test('D-086: sin ninguna repetición de margen se descansa 30 s más; cambiar de respuesta lo devuelve', () => {
+  let workout = startWorkout(proposal, START)!
+  workout = completeSet(workout, START) // calentamiento, sin descanso
+  workout = completeSet(workout, START) // flexiones 1/2, 90 s
+  assert.equal(restRemaining(workout.rest, START)?.remainingSeconds, 90)
+
+  workout = setReserve(workout, 1, 'ninguna', START)
+  assert.equal(restRemaining(workout.rest, START)?.remainingSeconds, 120)
+  // Volver a contestar lo mismo no acumula.
+  workout = setReserve(workout, 1, 'ninguna', START)
+  assert.equal(restRemaining(workout.rest, START)?.remainingSeconds, 120)
+  workout = setReserve(workout, 1, 'tres_mas', START)
+  assert.equal(restRemaining(workout.rest, START)?.remainingSeconds, 90)
+  // Otra respuesta distinta de «ninguna» no toca el descanso.
+  workout = setReserve(workout, 1, 'tres_mas', START)
+  assert.equal(restRemaining(workout.rest, START)?.remainingSeconds, 90)
+})
+
+test('D-086: un descanso saltado o terminado no se alarga', () => {
+  let workout = startWorkout(proposal, START)!
+  workout = completeSet(workout, START)
+  workout = completeSet(workout, START)
+  const after = new Date(START.getTime() + 200_000)
+  assert.equal(restRemaining(setReserve(workout, 1, 'ninguna', after).rest, after), null)
+  const skipped = setReserve({ ...workout, rest: null }, 1, 'ninguna', START)
+  assert.equal(skipped.rest, null)
 })
 
 test('lo contestado se guarda con el ejercicio, en el almacén y en la sesión', () => {

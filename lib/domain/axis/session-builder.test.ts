@@ -21,7 +21,8 @@ import {
   toWorkoutSession,
   type ActiveWorkout,
 } from '../workouts/active-workout'
-import { isPatternFallback, patternOf } from '../workouts/patterns'
+import type { UserEquipment } from '../workouts/equipment'
+import { isPatternFallback, patternOf, warmupFamilyOf } from '../workouts/patterns'
 import type { AxisProposal } from './types'
 import {
   adaptDifficulty,
@@ -225,12 +226,24 @@ test('D-050: la duración sale de series, repeticiones, descansos y cambios', ()
   const planned = (sets: number, reps: number, rest: number, extra: Partial<{ isTimed: boolean; unilateral: boolean }> = {}) => ({
     exerciseId: 'x', name: 'x', sets, reps, isTimed: false, suggestedWeightKg: null, restSeconds: rest, unilateral: false, tempo: null, imageUrl: null, ...extra,
   })
-  // 3 × 10 a 4 s, 2 descansos de 60 s y 45 s de cambio: 120 + 120 + 45 = 285 s → 5 min.
-  assert.equal(estimateMinutes([planned(3, 10, 60)]), 5)
+  // 3 × 10 a 4 s y 2 descansos de 60 s: 120 + 120 = 240 s → 4 min. Tras el último no hay nada.
+  assert.equal(estimateMinutes([planned(3, 10, 60)]), 4)
   // A un lado y luego al otro, el trabajo se dobla.
   assert.ok(estimateMinutes([planned(3, 10, 60, { unilateral: true })]) > estimateMinutes([planned(3, 10, 60)]))
-  // Por tiempo, los segundos son los del ejercicio: 4 × 30 s + 3 × 30 s + 45 s ≈ 4 min.
+  // Por tiempo, los segundos son los del ejercicio: 4 × 30 s + 3 × 30 s = 210 s ≈ 4 min.
   assert.equal(estimateMinutes([planned(4, 30, 30, { isTimed: true })]), 4)
+})
+
+test('D-086: entre ejercicios cuenta el descanso que salta en la app, y el cambio se hace en él', () => {
+  const planned = (rest: number, extra: Partial<{ phase: ExercisePhase }> = {}) => ({
+    exerciseId: 'x', name: 'x', sets: 1, reps: 60, isTimed: true, suggestedWeightKg: null, restSeconds: rest, unilateral: false, tempo: null, imageUrl: null, ...extra,
+  })
+  // 60 + 120 de descanso + 60 = 240 s: no se suman los 45 s de cambio.
+  assert.equal(estimateMinutes([planned(120), planned(120)]), 4)
+  // Con un descanso corto o sin él, el cambio de 45 s manda: 60 + 45 + 60 = 165 s → 3 min.
+  assert.equal(estimateMinutes([planned(0), planned(0)]), 3)
+  // En el calentamiento el cambio es de 20 s: 60 + 20 + 60 = 140 s → 2 min.
+  assert.equal(estimateMinutes([planned(0, { phase: 'calentamiento' }), planned(0)]), 2)
 })
 
 test('D-050: con muy poco tiempo la sesión se compacta en vez de pasarse', () => {
@@ -664,12 +677,13 @@ test('D-045: cada sesión de fuerza abre con el calentamiento en tres partes y y
   for (const focus of ['tren_superior', 'tren_inferior', 'cuerpo_completo'] as const) {
     const session = buildSession({ ...ROTATION, focus })
     const parts = session.exercises.map((item) => item.warmupPart ?? (item.phase ? 'otra fase' : 'entrenamiento'))
-    const first = parts.indexOf('entrenamiento')
-    assert.ok(first > 0, `${focus}: empieza calentando`)
-    // Activación, movilidad y aproximación, en ese orden y sin mezclarse.
-    const warmup = parts.slice(0, first)
-    assert.deepEqual([...new Set(warmup)], ['activacion', 'movilidad', 'aproximacion'], `${focus}: ${warmup.join(', ')}`)
-    assert.ok(parts.slice(first).every((part) => part === 'entrenamiento'), `${focus}: termina con el entrenamiento`)
+    // Activación y movilidad abren la sesión, en ese orden y sin mezclarse.
+    const general = parts.lastIndexOf('movilidad') + 1
+    assert.deepEqual([...new Set(parts.slice(0, general))], ['activacion', 'movilidad'], `${focus}: ${parts.join(', ')}`)
+    // Después, solo el entrenamiento con sus aproximaciones (D-086), y lo último es entrenar.
+    const rest = parts.slice(general)
+    assert.ok(rest.every((part) => part === 'entrenamiento' || part === 'aproximacion'), `${focus}: ${rest.join(', ')}`)
+    assert.equal(rest[rest.length - 1], 'entrenamiento', `${focus}: termina con el entrenamiento`)
     assert.ok(session.exercises.every((item) => item.phase !== 'vuelta_calma'))
   }
 })
@@ -715,27 +729,90 @@ test('la movilidad articular nunca se elige como entrenamiento', () => {
   }
 })
 
-test('D-045: la aproximación son 5 repeticiones de los primeros ejercicios: con pesa la misma carga, sin pesa una variante más fácil', () => {
-  for (const focus of ['tren_superior', 'tren_inferior', 'cuerpo_completo'] as const) {
-    const session = buildSession({ ...ROTATION, focus })
-    const main = session.exercises.filter(isMainExercise).filter((item) => !item.isTimed && exercise(item.exerciseId).category !== 'pliometria')
-    const approach = session.exercises.filter((item) => item.warmupPart === 'aproximacion')
-    assert.equal(approach.length, Math.min(3, main.length), focus)
-    approach.forEach((item, index) => {
-      const planned = main[index]
-      const original = exercise(planned.exerciseId)
-      assert.equal(item.sets, 1)
-      assert.equal(item.reps, 5)
-      assert.equal(item.restSeconds, 0)
-      if (usesLoad(original)) {
-        assert.equal(item.exerciseId, planned.exerciseId, `${focus}: con pesa, el mismo ejercicio`)
-        assert.equal(item.suggestedWeightKg, planned.suggestedWeightKg, `${focus}: con la pesa que se va a usar`)
-      } else {
-        assert.equal(item.exerciseId, original.regressionId ?? original.id, `${focus}: sin pesa, la variante más fácil`)
-        assert.equal(item.suggestedWeightKg, null)
-      }
-    })
+const FULL_GEAR: UserEquipment = {
+  items: ['barra_dominadas'],
+  weights: [5, 8, 10, 12, 16, 20].map((kg) => ({ kind: 'mancuerna' as const, kg, pair: true })),
+}
+
+test('D-086: cada aproximación va justo antes de su ejercicio y descansa 45 s antes de trabajar', () => {
+  for (const gear of [FULL_GEAR, undefined]) {
+    for (const focus of ['tren_superior', 'tren_inferior', 'cuerpo_completo'] as const) {
+      const { exercises } = buildSession({ ...ROTATION, focus, ...(gear ? { gear } : {}) })
+      exercises.forEach((item, index) => {
+        if (item.warmupPart !== 'aproximacion') return
+        assert.equal(item.sets, 1)
+        const next = exercises[index + 1]
+        if (next.warmupPart === 'aproximacion') {
+          // Dentro de la rampa no se para: va subiendo.
+          assert.equal(item.restSeconds, 0, `${focus}: ${item.name}`)
+          assert.equal(next.exerciseId, item.exerciseId)
+          return
+        }
+        assert.ok(isMainExercise(next), `${focus}: tras ${item.name} viene el entrenamiento`)
+        assert.equal(item.restSeconds, 45, `${focus}: ${item.name}`)
+        const original = exercise(next.exerciseId)
+        if (usesLoad(original)) {
+          assert.equal(item.exerciseId, next.exerciseId, `${focus}: con pesa, el mismo ejercicio`)
+          assert.ok(item.suggestedWeightKg! <= next.suggestedWeightKg!, `${focus}: nunca más que la de trabajo`)
+        } else {
+          assert.equal(item.exerciseId, original.regressionId ?? original.id, `${focus}: sin pesa, la variante más fácil`)
+          assert.equal(item.suggestedWeightKg, null)
+        }
+      })
+    }
   }
+})
+
+test('D-086: solo se calienta el primero de cada familia de movimiento, tres como mucho', () => {
+  for (const focus of ['tren_superior', 'tren_inferior', 'cuerpo_completo'] as const) {
+    const { exercises } = buildSession({ ...ROTATION, focus, gear: FULL_GEAR, availableMinutes: 60 })
+    const warmedUp = exercises.filter((item, index) => isMainExercise(item) && exercises[index - 1]?.warmupPart === 'aproximacion')
+    const families = warmedUp.map((item) => warmupFamilyOf(exercise(item.exerciseId)))
+    assert.equal(new Set(families).size, families.length, `${focus}: ${families.join(', ')}`)
+    assert.ok(warmedUp.length >= 1 && warmedUp.length <= 3, focus)
+  }
+})
+
+test('D-086: con muchas repeticiones y el mismo peso, la aproximación sobra', () => {
+  const { exercises } = buildSession({ ...ROTATION, focus: 'tren_superior', goals: ['hipertrofia'] })
+  const row = exercises.findIndex((item) => isMainExercise(item) && item.exerciseId === 'remo-unilateral')
+  assert.ok(row > 0, 'la sesión lleva remo con la pesa de 5 kg')
+  assert.ok(exercises[row].reps >= 10)
+  assert.notEqual(exercises[row - 1].warmupPart, 'aproximacion')
+})
+
+test('D-086: lo ya trabajado está caliente: tras la sentadilla con pesa, la zancada no se aproxima', () => {
+  const { exercises } = buildSession({ ...ROTATION, focus: 'tren_inferior', goals: ['fuerza'], goal: 'fuerza' })
+  const main = exercises.filter(isMainExercise).map((item) => item.exerciseId)
+  assert.ok(main.includes('sentadilla-con-pesa') && main.includes('zancadas'), main.join(', '))
+  assert.ok(main.indexOf('sentadilla-con-pesa') < main.indexOf('zancadas'))
+  const lunge = exercises.findIndex((item) => item.exerciseId === 'zancadas')
+  assert.notEqual(exercises[lunge - 1].warmupPart, 'aproximacion')
+})
+
+test('D-086: un salto que abre la sesión lleva antes unas sentadillas, salvo que carguen una zona a cuidar', () => {
+  const { exercises } = buildSession({ ...ROTATION, focus: 'tren_inferior', jumpSport: true })
+  const firstApproach = exercises.findIndex((item) => item.warmupPart === 'aproximacion')
+  assert.equal(exercises[firstApproach].exerciseId, 'sentadilla')
+  assert.equal(exercises[firstApproach].restSeconds, 45)
+  assert.equal(exercise(exercises[firstApproach + 1].exerciseId).category, 'pliometria')
+})
+
+test('D-086: con 30 minutos o menos el calentamiento se recorta antes que las series', () => {
+  const short = buildSession({ ...ROTATION, focus: 'tren_superior', goals: ['hipertrofia'], availableMinutes: 30 })
+  assert.deepEqual(short.exercises.filter((item) => item.warmupPart === 'activacion').map((item) => item.reps), [30, 30])
+  assert.equal(short.exercises.find((item) => item.exerciseId === 'movilidad-articular')?.reps, 60)
+  const approached = new Set(short.exercises.filter((item) => item.warmupPart === 'aproximacion').map((item) => item.exerciseId))
+  assert.ok(approached.size <= 1)
+  assert.ok(short.estimatedMinutes <= 30)
+  assert.ok(short.exercises.filter(isMainExercise).every((item) => item.sets >= 3), 'caben las 3 series')
+
+  // Con 31 minutos, el calentamiento completo.
+  const full = buildSession({ ...ROTATION, focus: 'tren_superior', goals: ['hipertrofia'], availableMinutes: 31 })
+  assert.equal(full.exercises.find((item) => item.exerciseId === 'movilidad-articular')?.reps, 120)
+  // Quien busca movilidad la conserva aunque haya poco tiempo.
+  const mobility = buildSession({ ...ROTATION, focus: 'tren_superior', goals: ['fuerza', 'movilidad'], availableMinutes: 30 })
+  assert.equal(mobility.exercises.find((item) => item.exerciseId === 'movilidad-articular')?.reps, 180)
 })
 
 test('D-032: la sesión de movilidad no lleva calentamiento: ya lo es', () => {

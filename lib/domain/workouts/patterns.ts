@@ -129,6 +129,26 @@ export function patternOf(exercise: Pick<Exercise, 'id'>): MovementPattern | nul
   return EXERCISE_PATTERNS[exercise.id] ?? null
 }
 
+/**
+ * Qué calienta cada patrón (D-086): tras calentar un empuje, el otro ya no lo
+ * necesita, y una sentadilla ya prepara las rodillas para una zancada. Los
+ * accesorios no están: nunca llevan serie de aproximación.
+ */
+const WARMUP_FAMILIES: Partial<Record<MovementPattern, string>> = {
+  empuje_horizontal: 'empuje',
+  empuje_vertical: 'empuje',
+  tiron_horizontal: 'tiron',
+  tiron_vertical: 'tiron',
+  sentadilla: 'rodilla',
+  zancada: 'rodilla',
+  bisagra: 'cadera',
+}
+
+export function warmupFamilyOf(exercise: Pick<Exercise, 'id'>): string | null {
+  const pattern = patternOf(exercise)
+  return pattern ? (WARMUP_FAMILIES[pattern] ?? null) : null
+}
+
 /** Un ejercicio de un músculo (o sin patrón): ni abre la sesión ni se trabaja a repeticiones bajas. */
 export function isIsolation(exercise: Pick<Exercise, 'id'>): boolean {
   const pattern = patternOf(exercise)

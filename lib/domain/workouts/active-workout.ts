@@ -259,6 +259,9 @@ export function completeSet(workout: ActiveWorkout, now: Date = new Date()): Act
   }
 }
 
+/** Descanso de más cuando no quedaba ninguna repetición (D-086). */
+export const FAILURE_EXTRA_REST_SECONDS = 30
+
 /**
  * El ejercicio por el que preguntar «¿cuántas te quedaban?»: el de la serie
  * recién hecha, en cada serie (D-055) y no solo en la última (D-052), si es del
@@ -284,15 +287,27 @@ export function targetReserveOf(workout: ActiveWorkout): RepsInReserve {
  * ejercicio queda además como la reserva del ejercicio, la que lee la
  * progresión (D-052). Si quedan series, la siguiente se ajusta: más ligera si
  * quedaban menos de las buscadas, más pesada si quedaban más.
+ *
+ * Llegar al fallo alarga el descanso en curso (D-086); cambiar de respuesta lo
+ * devuelve, así que contestar varias veces no acumula.
  */
-export function setReserve(workout: ActiveWorkout, index: number, reserve: RepsInReserve): ActiveWorkout {
+export function setReserve(
+  workout: ActiveWorkout,
+  index: number,
+  reserve: RepsInReserve,
+  now: Date = new Date(),
+): ActiveWorkout {
   const entry = workout.entries[index]
   const done = entry?.sets[entry.sets.length - 1]
   if (!entry || !done) return workout
 
   const target = targetReserveOf(workout)
   const finished = entry.sets.length >= entry.targetSets
-  return replaceEntry(workout, index, (current) => {
+  const reachedFailure = reserve === 'ninguna'
+  const wasFailure = done.reserve === 'ninguna'
+  const extra = reachedFailure === wasFailure ? 0 : reachedFailure ? FAILURE_EXTRA_REST_SECONDS : -FAILURE_EXTRA_REST_SECONDS
+  const rest = workout.rest && extra !== 0 ? (extendRestWindow(workout.rest, extra, now) ?? workout.rest) : workout.rest
+  return replaceEntry({ ...workout, rest }, index, (current) => {
     const sets = [...current.sets.slice(0, -1), { ...done, reserve }]
     if (finished) return { ...current, sets, reserve }
     const next = nextSetAfter(done, reserve, target, {

@@ -294,7 +294,10 @@ function PhaseGroup({ label, exercises }: { label: string; exercises: readonly P
             <span className="min-w-0 flex-1">
               <span className="block text-subhead font-medium">{exercise.name}</span>
               {exercise.warmupPart && (
-                <span className="block text-caption text-muted-foreground">{WARMUP_PART_LABELS[exercise.warmupPart]}</span>
+                <span className="block text-caption text-muted-foreground">
+                  {WARMUP_PART_LABELS[exercise.warmupPart]}
+                  {exercise.warmupPart === 'aproximacion' && ' · antes de su ejercicio'}
+                </span>
               )}
             </span>
             <Dose exercise={exercise} />

@@ -16,7 +16,7 @@
 import type { CareZone, ExperienceLevel, Sex, TrainingGoal } from '../profile/types'
 import { loadsCareZone } from '../workouts/joints'
 import { chosenLevel } from '../workouts/levels'
-import { isIsolation, isPatternFallback, patternOf, type MovementPattern } from '../workouts/patterns'
+import { isIsolation, isPatternFallback, patternOf, warmupFamilyOf, type MovementPattern } from '../workouts/patterns'
 import { laggingSubgroups, subgroupsOf, type Subgroup } from '../workouts/subgroups'
 import type { DayKey } from '../shared/dates'
 import { clamp } from '../shared/ids'
@@ -285,9 +285,9 @@ export type SessionBuildOptions = {
  * 1. **Activación**: jumping jacks y escaladores, un minuto cada uno.
  * 2. **Movilidad articular**: dos minutos libres (`JOINT_MOBILITY`), más lo que
  *    se prescribe a cada uno: equilibrio si salta y correctivos del escaneo.
- * 3. **Series de aproximación**: 5 repeticiones suaves de los primeros
- *    ejercicios del entreno (`approachSets`); el primero con carga sube por
- *    rampa con los pesos del usuario (`rampTo`, D-063).
+ * 3. **Series de aproximación**: justo antes de su ejercicio, y solo en el primero
+ *    de cada familia de movimiento (`withApproachSets`, D-086); el primero con
+ *    carga sube por rampa con los pesos del usuario (`rampTo`, D-063).
  *
  * La sesión de movilidad no lleva calentamiento: ya lo es. Desde D-045 tampoco
  * hay vuelta a la calma.
@@ -297,6 +297,22 @@ export const ACTIVATION_EXERCISES: readonly string[] = ['jumping-jacks', 'escala
 /** Cuántos ejercicios del entreno llevan serie de aproximación, y de cuántas repeticiones. */
 export const APPROACH_EXERCISES = 3
 export const APPROACH_REPS = 5
+/** Descanso entre la aproximación y la primera serie de trabajo (D-086). */
+export const APPROACH_REST_SECONDS = 45
+/**
+ * Con 10 o más repeticiones y sin un peso más ligero ni una variante más fácil,
+ * la aproximación sobra (D-086): las primeras repeticiones de la serie ya calientan.
+ */
+export const APPROACH_SKIP_MIN_REPS = 10
+/** Lo que prepara las piernas antes de un salto, que abre la sesión sin aproximación propia (D-086). */
+export const JUMP_APPROACH_EXERCISE = 'sentadilla'
+
+/** Hasta aquí, el calentamiento se recorta antes de quitar series (D-086). */
+export const SHORT_SESSION_MINUTES = 30
+export const SHORT_ACTIVATION_SECONDS = 30
+export const SHORT_JOINT_MOBILITY_SECONDS = 60
+export const SHORT_APPROACH_EXERCISES = 1
+
 /**
  * Rampa del primer ejercicio con carga (D-063): las series de aproximación
  * suben hacia el peso de trabajo con los pesos del usuario, como en un
@@ -307,8 +323,7 @@ export const RAMP_STEPS: readonly { share: number; reps: number }[] = [
   { share: 0.75, reps: 4 },
 ]
 
-/** Minutos de la activación y de cada serie de aproximación: salen del tiempo disponible. */
-const ACTIVATION_MINUTES = 2
+/** Minutos de cada serie de aproximación: salen del tiempo disponible. */
 const APPROACH_MINUTES = 1
 
 /**
@@ -446,9 +461,6 @@ function jumpExerciseFor(
 /** Correctivos del escaneo que caben en el calentamiento (D-041). */
 const MAX_WARMUP_EXTRAS = 2
 
-/** Minutos que ocupa cada ejercicio de calentamiento o vuelta a la calma: salen del tiempo disponible. */
-export const PHASE_EXERCISE_MINUTES = 2
-
 /**
  * Los ejercicios de una fase, tal como se proponen: una serie, las
  * repeticiones o segundos del catálogo, sin carga, sin descanso y sin
@@ -479,71 +491,95 @@ function phaseExercises(
     }))
 }
 
+/** Una o varias series de aproximación seguidas; la última deja el descanso antes de trabajar. */
+function approachSteps(
+  exercise: Exercise,
+  steps: readonly { kg: number | null; reps: number }[],
+): PlannedExercise[] {
+  return steps.map((step, index) => ({
+    exerciseId: exercise.id,
+    name: exercise.name,
+    sets: 1,
+    reps: step.reps,
+    isTimed: false,
+    suggestedWeightKg: step.kg,
+    restSeconds: index === steps.length - 1 ? APPROACH_REST_SECONDS : 0,
+    unilateral: exercise.unilateral,
+    tempo: null,
+    imageUrl: exercise.imageUrl,
+    phase: 'calentamiento',
+    warmupPart: 'aproximacion',
+  }))
+}
+
 /**
- * Las series de aproximación (D-045): 5 repeticiones de los primeros ejercicios
- * del entreno. Con pesa, la misma carga, para tantearla; sin pesa, la variante
- * más fácil si la hay, para no gastar energía. Ni los de tiempo ni los saltos.
+ * El entrenamiento con sus series de aproximación, cada una justo antes de su
+ * ejercicio (D-086; antes iban todas al principio, D-045).
+ *
+ * Solo el primer compuesto de cada familia de movimiento, hasta `limit`. Con pesa,
+ * la misma carga para tantearla; sin pesa, la variante más fácil si la hay; el
+ * primero con carga, por rampa. Ni los de tiempo ni los saltos; un salto que abre
+ * la sesión lleva antes unas sentadillas.
  */
-function approachSets(
+function withApproachSets(
   main: readonly PlannedExercise[],
   catalog: readonly Exercise[],
   equipment: readonly Equipment[],
+  limit: number,
   careZones: readonly CareZone[] = [],
   gear: UserEquipment = LEGACY_EQUIPMENT,
 ): PlannedExercise[] {
   const result: PlannedExercise[] = []
+  const warmed = new Set<string>()
   let exercises = 0
   let ramped = false
   for (const planned of main) {
-    if (exercises >= APPROACH_EXERCISES) break
     const exercise = catalog.find((item) => item.id === planned.exerciseId)
+
+    if (exercise?.category === 'pliometria' && result.length === 0) {
+      const legs = catalog.find((item) => item.id === JUMP_APPROACH_EXERCISE)
+      if (legs && isAvailable(legs, equipment) && !loadsCareZone(legs.id, careZones)) {
+        result.push(...approachSteps(legs, [{ kg: null, reps: APPROACH_REPS }]))
+      }
+    }
+
+    const family = exercise ? warmupFamilyOf(exercise) : null
     // Solo los compuestos: 5 curls o 5 elevaciones de gemelos no preparan nada (D-073).
-    if (!exercise || planned.isTimed || exercise.category === 'pliometria' || isIsolation(exercise)) continue
+    if (
+      !exercise ||
+      planned.isTimed ||
+      exercise.category === 'pliometria' ||
+      isIsolation(exercise) ||
+      exercises >= limit ||
+      (family !== null && warmed.has(family))
+    ) {
+      result.push(planned)
+      continue
+    }
+
     const easier =
       !usesLoad(exercise) && exercise.regressionId ? catalog.find((item) => item.id === exercise.regressionId) : undefined
     const used =
       easier && isAvailable(easier, equipment) && !easier.work.isTimed && !loadsCareZone(easier.id, careZones) ? easier : exercise
-    exercises += 1
 
     // El primero con carga sube por rampa hasta el peso de trabajo (D-063).
     const ramp = !ramped && usesLoad(used) && planned.suggestedWeightKg !== null
       ? rampTo(planned.suggestedWeightKg, loadsFor(used, gear))
       : []
-    if (ramp.length > 0) {
-      ramped = true
-      for (const step of ramp) {
-        result.push({
-          exerciseId: used.id,
-          name: used.name,
-          sets: 1,
-          reps: step.reps,
-          isTimed: false,
-          suggestedWeightKg: step.kg,
-          restSeconds: 0,
-          unilateral: used.unilateral,
-          tempo: null,
-          imageUrl: used.imageUrl,
-          phase: 'calentamiento',
-          warmupPart: 'aproximacion',
-        })
-      }
+    const worthIt = ramp.length > 0 || used !== exercise || planned.reps < APPROACH_SKIP_MIN_REPS
+    // Trabajado o calentado, la familia ya está caliente para lo que venga después.
+    if (family !== null) warmed.add(family)
+    if (!worthIt) {
+      result.push(planned)
       continue
     }
 
-    result.push({
-      exerciseId: used.id,
-      name: used.name,
-      sets: 1,
-      reps: APPROACH_REPS,
-      isTimed: false,
-      suggestedWeightKg: usesLoad(used) ? planned.suggestedWeightKg : null,
-      restSeconds: 0,
-      unilateral: used.unilateral,
-      tempo: null,
-      imageUrl: used.imageUrl,
-      phase: 'calentamiento',
-      warmupPart: 'aproximacion',
-    })
+    if (ramp.length > 0) ramped = true
+    exercises += 1
+    const steps = ramp.length > 0
+      ? ramp
+      : [{ kg: usesLoad(used) ? planned.suggestedWeightKg : null, reps: APPROACH_REPS }]
+    result.push(...approachSteps(used, steps), planned)
   }
   return result
 }
@@ -1135,9 +1171,19 @@ export function buildSession(options: SessionBuildOptions): PlannedSession {
         cares({ id }),
       )
     : []
-  const jointSeconds = goals.includes('movilidad') ? JOINT_MOBILITY_GOAL_SECONDS : JOINT_MOBILITY_SECONDS
+  // Con poco tiempo, el calentamiento se recorta antes que el entrenamiento (D-086).
+  // Lo prescrito (correctivos, equilibrio) y la movilidad de quien la busca no se tocan.
+  const shortSession = availableMinutes <= SHORT_SESSION_MINUTES
+  const jointSeconds = goals.includes('movilidad')
+    ? JOINT_MOBILITY_GOAL_SECONDS
+    : shortSession
+      ? SHORT_JOINT_MOBILITY_SECONDS
+      : JOINT_MOBILITY_SECONDS
+  const approachLimit = shortSession ? SHORT_APPROACH_EXERCISES : APPROACH_EXERCISES
   const activation = warmsUp
-    ? phaseExercises(ACTIVATION_EXERCISES.filter((id) => cares({ id })), 'calentamiento', phaseCatalog, 'activacion')
+    ? phaseExercises(ACTIVATION_EXERCISES.filter((id) => cares({ id })), 'calentamiento', phaseCatalog, 'activacion').map((item) =>
+        shortSession ? { ...item, reps: SHORT_ACTIVATION_SECONDS } : item,
+      )
     : []
   const joint = warmsUp
     ? phaseExercises([JOINT_MOBILITY], 'calentamiento', phaseCatalog, 'movilidad').map((item) => ({ ...item, reps: jointSeconds }))
@@ -1145,10 +1191,8 @@ export function buildSession(options: SessionBuildOptions): PlannedSession {
   const targeted = phaseExercises(targetedIds, 'calentamiento', phaseCatalog, 'movilidad')
   const mobility = [...joint, ...targeted]
   // Los intervalos son por tiempo: no llevan series de aproximación (D-047).
-  const approachMinutes = conditioning ? 0 : APPROACH_EXERCISES * APPROACH_MINUTES
-  const phaseMinutes = warmsUp
-    ? ACTIVATION_MINUTES + approachMinutes + jointSeconds / 60 + targeted.length * PHASE_EXERCISE_MINUTES
-    : 0
+  const approachMinutes = conditioning ? 0 : approachLimit * APPROACH_MINUTES
+  const phaseMinutes = warmsUp ? estimateMinutes([...activation, ...mobility]) + approachMinutes : 0
   // Con un deporte de salto, o si la sesión es de rendimiento (D-047), un salto abre el entrenamiento y ocupa un hueco (D-033).
   const jump =
     (jumpSport || goal === 'rendimiento_deportivo') && JUMP_FOCUSES.includes(focus) && intensity === 'moderada'
@@ -1217,8 +1261,7 @@ export function buildSession(options: SessionBuildOptions): PlannedSession {
     const all = [
       ...activation,
       ...mobility,
-      ...(warmsUp ? approachSets(exercises, phaseCatalog, equipment, careZones, gear) : []),
-      ...exercises,
+      ...(warmsUp ? withApproachSets(exercises, phaseCatalog, equipment, approachLimit, careZones, gear) : exercises),
     ]
     return {
       focus,
@@ -1282,19 +1325,27 @@ const MIN_EXERCISES_WHEN_SHORT = 2
 export const SECONDS_PER_REP = 4
 /** Cambio de un ejercicio al siguiente: colocarse, coger la pesa, leer el siguiente. */
 export const TRANSITION_SECONDS = 45
+/** En el calentamiento no hay casi nada que preparar (D-086). */
+export const WARMUP_TRANSITION_SECONDS = 20
 
 /**
  * La duración real de la sesión, en minutos (D-050): por cada ejercicio, el
  * trabajo de cada serie (segundos, o repeticiones × 4 s; el doble si es a un
- * lado y luego al otro), los descansos entre series y el cambio al siguiente.
+ * lado y luego al otro), los descansos entre series y el paso al siguiente.
+ *
+ * Tras la última serie de un ejercicio también salta su descanso (D-086), y el
+ * cambio se hace durante ese tiempo. Tras el último de la sesión no hay nada.
  */
 export function estimateMinutes(exercises: readonly PlannedExercise[]): number {
   let seconds = 0
-  for (const item of exercises) {
+  exercises.forEach((item, index) => {
     const perSide = item.isTimed ? item.reps : item.reps * SECONDS_PER_REP
     const work = perSide * (item.unilateral ? 2 : 1)
-    seconds += item.sets * work + Math.max(0, item.sets - 1) * item.restSeconds + TRANSITION_SECONDS
-  }
+    seconds += item.sets * work + Math.max(0, item.sets - 1) * item.restSeconds
+    if (index === exercises.length - 1) return
+    const transition = item.phase === 'calentamiento' ? WARMUP_TRANSITION_SECONDS : TRANSITION_SECONDS
+    seconds += Math.max(item.restSeconds, transition)
+  })
   return Math.max(1, Math.round(seconds / 60))
 }
 

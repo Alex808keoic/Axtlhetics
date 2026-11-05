@@ -580,6 +580,9 @@ function ReservePicker({ question }: { question: ReserveQuestion }) {
           {question.advice}
         </p>
       )}
+      {question.value === 'ninguna' && (
+        <p className="ax-fade mt-3 text-footnote font-medium text-primary">Descansas 30 s más.</p>
+      )}
     </div>
   )
 }
