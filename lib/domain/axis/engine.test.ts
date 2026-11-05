@@ -240,7 +240,7 @@ test('evita repetir el grupo trabajado ayer', () => {
   assert.notEqual(decision.primary.session?.focus, 'tren_superior')
 })
 
-test('con tren superior ayer y tren inferior anteayer, no repite ninguno de los dos', () => {
+test('D-087: con tren superior ayer y tren inferior anteayer, no repite lo de ayer', () => {
   const decision = decide(
     contextWith({
       recentSessions: [
@@ -254,14 +254,53 @@ test('con tren superior ayer y tren inferior anteayer, no repite ninguno de los 
     }),
   )
   assert.equal(decision.primary.type, 'TRAINING')
-  // Con los dos trenes trabajados hace poco, algo se repite sí o sí. La garantía es
-  // que elige el foco con menos solape: tren inferior está entero en el historial
-  // reciente, tren superior solo a medias.
-  assert.notEqual(
-    decision.primary.session?.focus,
-    'tren_inferior',
-    'no debería repetir el foco cuyos grupos están todos recién trabajados',
+  // Con los dos trenes trabajados hace poco, algo se repite sí o sí. Lo que lleva dos
+  // días descansando puede volver a trabajarse; lo de ayer, todavía no.
+  assert.equal(decision.primary.session?.focus, 'tren_inferior')
+})
+
+test('D-087: en días seguidos no se repite zona, aunque una tenga menos grupos que la otra', async () => {
+  const { chooseFocus } = await import('./rules')
+  const upper = { focus: 'tren_superior' as const, muscleGroups: ['pecho' as const, 'espalda' as const, 'hombros' as const, 'brazos' as const] }
+  const lower = { focus: 'tren_inferior' as const, muscleGroups: ['piernas' as const, 'gluteos' as const] }
+  const facts = (recentSessions: WorkoutSession[]) => deriveFacts(contextWith({ recentSessions }))
+
+  // Superior anteayer e inferior ayer: antes salía pierna otra vez.
+  assert.equal(
+    chooseFocus(facts([session({ ...lower, dayKey: SUNDAY_KEY }), session({ ...upper, dayKey: SATURDAY_KEY })])),
+    'tren_superior',
   )
+  // Y al revés, inferior anteayer y superior ayer.
+  assert.equal(
+    chooseFocus(facts([session({ ...upper, dayKey: SUNDAY_KEY }), session({ ...lower, dayKey: SATURDAY_KEY })])),
+    'tren_inferior',
+  )
+})
+
+test('D-087: un deporte que carga las piernas sigue mandando sobre la zona de ayer', async () => {
+  const { chooseFocus } = await import('./rules')
+  const facts = deriveFacts(
+    contextWith({
+      recentSessions: [
+        session({ dayKey: SUNDAY_KEY, focus: 'tren_superior', muscleGroups: ['pecho', 'espalda', 'hombros', 'brazos'] }),
+      ],
+      activities: [basketball()],
+    }),
+  )
+  assert.equal(chooseFocus(facts), 'tren_superior')
+})
+
+test('D-087: lo de hace más de un día no cuenta como ayer', () => {
+  const facts = deriveFacts(
+    contextWith({
+      recentSessions: [
+        session({ dayKey: SUNDAY_KEY, muscleGroups: ['piernas'] }),
+        session({ id: 'older', dayKey: SATURDAY_KEY, muscleGroups: ['pecho'] }),
+      ],
+    }),
+  )
+  assert.deepEqual(facts.yesterdayMuscleGroups, ['piernas'])
+  assert.deepEqual(facts.recentMuscleGroups, ['piernas', 'pecho'])
 })
 
 test('sin historial reciente no descarta ningún foco', () => {

@@ -438,9 +438,18 @@ const FOCUS_ROTATION: readonly SessionFocus[] = [
 const WEEKLY_WEIGHT = 1.5
 
 /**
+ * Cuánto pesa repetir una zona que se trabajó ayer entera (D-087). Va por encima
+ * de lo reciente y de la semana, para no repetir zona en días seguidos, y por
+ * debajo de un deporte que carga esos grupos: eso sigue mandando.
+ */
+const YESTERDAY_WEIGHT = 5
+
+/**
  * Elige el foco cuyos grupos musculares llevan más tiempo sin trabajarse, y evita
  * los grupos que carga una actividad fija de hoy. Desde D-034, entre focos
- * parecidos gana el que más va por detrás de su objetivo semanal de series.
+ * parecidos gana el que más va por detrás de su objetivo semanal de series. Desde
+ * D-087 se mira la parte del foco trabajada ayer, en proporción: contar grupos
+ * sueltos favorecía siempre al foco que tiene menos.
  */
 export function chooseFocus(
   facts: AxisFacts,
@@ -458,8 +467,12 @@ export function chooseFocus(
     // Media de lo cumplido de la semana en esos grupos, con techo: pasarse no resta más.
     const weekly =
       groups.reduce((total, group) => total + Math.min(facts.weeklyFulfilment?.[group] ?? 0, 1.5), 0) / groups.length
+    const yesterday = groups.filter((group) => facts.yesterdayMuscleGroups.includes(group)).length / groups.length
     const unreachable = blocked.includes(focus) ? 100 : 0
-    return { focus, penalty: recentOverlap + conflict * 10 + weekly * WEEKLY_WEIGHT + unreachable }
+    return {
+      focus,
+      penalty: recentOverlap + yesterday * YESTERDAY_WEIGHT + conflict * 10 + weekly * WEEKLY_WEIGHT + unreachable,
+    }
   })
 
   scored.sort((a, b) => a.penalty - b.penalty)

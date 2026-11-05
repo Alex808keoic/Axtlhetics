@@ -2654,6 +2654,19 @@ Lógica, datos, textos, navegación, funciones y las figuras de ejercicios. Solo
 
 ---
 
+## D-087 — No repetir zona en días seguidos
+
+**Fecha:** 2026-11-05 · **Estado:** aprobada e implementada · Decidido por Alex («sí, corrígelo»). **Corrige** `chooseFocus` (D-034).
+
+**Por qué:** al elegir la zona del día se contaba cuántos grupos se habían trabajado en los últimos 3 días, sin mirar cuándo. El tren superior tiene 4 grupos y el inferior 2, así que, con los dos recientes, ganaba siempre pierna: entrenando en días seguidos salía pierna 3 días con los mismos ejercicios.
+
+- **La zona trabajada ayer se penaliza** según la parte de ella que se trabajó (`yesterdayMuscleGroups`, `YESTERDAY_WEIGHT`). En días seguidos, la sesión alterna tren superior e inferior.
+- **Un deporte que carga esos músculos sigue mandando:** con tren superior ayer y básquet intenso hoy, vuelve a salir tren superior, para no cargar las piernas.
+- **Con un día de descanso en medio** se puede repetir zona, como hasta ahora.
+- **No cambia:** los ejercicios principales fijos del bloque (D-057), las reglas que deciden si se entrena, ni que el usuario pueda pedir la zona que quiera.
+
+---
+
 ## Decisiones pendientes
 
 Nada de lo que sigue debe inventarse ni resolverse sin aprobación explícita de Alex.

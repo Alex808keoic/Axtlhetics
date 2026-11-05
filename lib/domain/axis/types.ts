@@ -206,6 +206,8 @@ export type AxisFacts = {
   daysSinceLastWorkout: number | null
   /** Grupos trabajados en las sesiones recientes, del más reciente al más antiguo. */
   recentMuscleGroups: MuscleGroup[]
+  /** Los trabajados ayer u hoy (D-087): piden más descanso que los de hace dos o tres días. */
+  yesterdayMuscleGroups: MuscleGroup[]
   isAvailableToday: boolean
   /** Actividad más exigente de hoy, si la hay. */
   todayActivity: ScheduledActivity | null

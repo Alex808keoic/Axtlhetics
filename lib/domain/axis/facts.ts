@@ -70,10 +70,13 @@ export function deriveFacts(context: AxisContext): AxisFacts {
   const daysSinceLastWorkout = lastSession ? daysBetween(lastSession.dayKey, dayKey) : null
 
   const recentMuscleGroups: MuscleGroup[] = []
+  const yesterdayMuscleGroups: MuscleGroup[] = []
   for (const session of completedSessions) {
-    if (daysBetween(session.dayKey, dayKey) > RECENT_HISTORY_DAYS) break
+    const daysAgo = daysBetween(session.dayKey, dayKey)
+    if (daysAgo > RECENT_HISTORY_DAYS) break
     for (const group of session.muscleGroups) {
       if (!recentMuscleGroups.includes(group)) recentMuscleGroups.push(group)
+      if (daysAgo <= 1 && !yesterdayMuscleGroups.includes(group)) yesterdayMuscleGroups.push(group)
     }
   }
 
@@ -128,6 +131,7 @@ export function deriveFacts(context: AxisContext): AxisFacts {
     ...assessmentToday,
     daysSinceLastWorkout,
     recentMuscleGroups,
+    yesterdayMuscleGroups,
     isAvailableToday,
     todayActivity,
     todayActivities: [...todayActivities],
