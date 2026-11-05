@@ -2507,7 +2507,7 @@ Lógica, datos, textos de AXIS y funciones. Solo cambia cómo se ve.
 
 - **Perfil → «Ecosistema AXIS»** (`components/profile/ecosystem-sharing.tsx`): entrar con Google, elegir qué métricas se comparten (chips, como el resto de Perfil) y confirmar con «Compartir con AXIS». Después: cambiar la selección, «Dejar de compartir» o «Cerrar sesión». Al volver de Google se reabre Perfil.
 - **Qué sale del dispositivo:** un resumen por semana (contrato `axis.snapshot.v1`, copia en `lib/domain/ecosystem/contract.ts`), solo con las métricas activadas: sesiones hechas, dejadas a medias y cambiadas, minutos, volumen, medias de sueño, energía, estrés, fatiga y Recovery Score con los días registrados, y los objetivos medibles (D-035) de la semana actual. El **peso está desactivado por defecto**. Nunca salen series, ejercicios hechos, notas, conversaciones con AXIS, salud, escaneos, fotos, medidas ni comidas. `null` es «sin datos», nunca 0.
-- **Cuándo:** al confirmar se envía toda la historia; después, al abrir la app y al salir de ella, como mucho cada 5 minutos. Cada envío sustituye el de su semana, así que reenviar es inofensivo. Si falla, se reintenta la próxima vez sin molestar.
+- **Cuándo** (cambiado por D-085)**:** al confirmar se envía toda la historia; después, al abrir la app y al salir de ella, como mucho cada 5 minutos. Cada envío sustituye el de su semana, así que reenviar es inofensivo. Si falla, se reintenta la próxima vez sin molestar.
 - **Dónde:** el proyecto Supabase compartido del ecosistema (UE, eu-west-3). Cada usuario solo lee y escribe sus filas (RLS). La clave publicable está en el código porque es pública por diseño; la secreta nunca está en la app.
 - **Dejar de compartir** borra en AXIS todo lo recibido de AXTHLETICS y quita el consentimiento.
 - **Datos:** el consentimiento vive en el perfil (`UserProfile.ecosystem`: métricas y desde cuándo), con su propia acción en el store (`setEcosystemSharing`); `saveProfile` lo conserva. Viaja en la copia de seguridad, pero sin sesión de Google no se envía nada. No sube la versión de IndexedDB.
@@ -2624,6 +2624,16 @@ Lógica, datos, textos, navegación, funciones y las figuras de ejercicios. Solo
 
 - La pregunta tras cada serie pasa de «¿Cuántas te quedaban?» a **«¿Cuántas más podrías haber hecho?»**.
 - **No cambia:** las opciones (0 · 1–2 · 3 o más), lo que se guarda (`reserve`) ni cómo se ajusta la siguiente serie.
+
+---
+
+## D-085 — Lo que apuntas llega a AXIS el mismo día
+
+**Fecha:** 2026-11-05 · **Estado:** aprobada e implementada · Decidido por Alex, que pidió que los datos lleguen cada día sin hacer nada y eligió «que siempre llegue». **Cambia** el «Cuándo» de D-076. El detalle común a las tres apps está en D-025 del repositorio de AXIS.
+
+- **Cuándo:** al abrir la app, al volver a ella, al salir y, a la vista, cada minuto si algo cambió. Se quita la espera de 5 minutos, que dejaba sin enviar lo apuntado justo después de abrir.
+- **Sin cambios no hay petición:** se compara con el último envío correcto, sin contar la hora de generación (`lib/ecosystem/snapshot-fingerprint.ts`). Si falla, se reintenta en la siguiente ocasión.
+- **No cambia:** los datos siguen siendo resúmenes semanales, con las mismas métricas y el mismo consentimiento. Sin sesión de Google no se envía nada, y sin abrir la app tampoco.
 
 ---
 

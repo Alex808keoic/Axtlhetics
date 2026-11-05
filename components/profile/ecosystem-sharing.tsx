@@ -151,10 +151,10 @@ export function EcosystemSharing() {
           {sharing && !changed && (
             <p className="text-footnote leading-relaxed text-muted-foreground text-pretty">
               {failed
-                ? 'No he podido enviar el último resumen. Lo intento otra vez la próxima vez que abras la app.'
+                ? 'No he podido enviar el último resumen. Lo vuelvo a intentar yo solo.'
                 : lastSentAt
                   ? `Compartiendo. Último envío a las ${time.format(new Date(lastSentAt))}.`
-                  : 'Compartiendo. El resumen se envía al abrir y al salir de la app.'}
+                  : 'Compartiendo. El resumen se envía solo mientras usas la app.'}
             </p>
           )}
 

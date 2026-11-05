@@ -5,8 +5,9 @@
  *
  * Funciona aunque nunca se conecte: sin sesión guardada no carga la librería ni
  * hace ninguna petición. Con sesión y consentimiento, envía los resúmenes al
- * abrir la app y al salir de ella (como mucho cada pocos minutos). Si falla, no
- * molesta: se vuelve a intentar la próxima vez. AXTHLETICS nunca espera a AXIS.
+ * abrir la app, al volver a ella, al salir y, a la vista, en cuanto cambian (se
+ * mira cada minuto; D-085). Si falla, no molesta: se vuelve a intentar en la
+ * siguiente ocasión. AXTHLETICS nunca espera a AXIS.
  *
  * Con sesión, además, la copia en la nube (`cloud`, D-081): tus datos en cualquier
  * dispositivo donde entres con la misma cuenta. La pantalla no se actualiza sola al
@@ -54,6 +55,9 @@ export type EcosystemApi = {
 }
 
 const APP_VERSION = process.env.NEXT_PUBLIC_VERCEL_GIT_COMMIT_SHA?.slice(0, 7) ?? 'dev'
+
+/** Con la app a la vista, cada cuánto se mira si hay algo nuevo para AXIS. */
+const PUSH_CHECK_MS = 60_000
 
 const EcosystemContext = createContext<EcosystemApi | null>(null)
 
@@ -109,17 +113,22 @@ export function EcosystemProvider({ children }: { children: ReactNode }) {
     [today],
   )
 
-  // Envío automático: al abrir con sesión y consentimiento, y al salir de la app.
+  // Envío automático con sesión y consentimiento: al abrir, al volver, al salir y cada
+  // minuto a la vista. `pushSnapshots` no hace la petición si nada cambió.
   const sharedMetrics = status === 'ready' && session ? profile?.ecosystem?.metrics : undefined
   const sharedKey = sharedMetrics?.join(',')
   useEffect(() => {
     if (!sharedMetrics) return
-    void push(sharedMetrics, false).catch(() => setFailed(true))
-    const onHide = () => {
-      if (document.visibilityState === 'hidden') void push(sharedMetrics, false).catch(() => setFailed(true))
+    const send = () => void push(sharedMetrics, false).catch(() => setFailed(true))
+    send()
+    document.addEventListener('visibilitychange', send)
+    const timer = window.setInterval(() => {
+      if (document.visibilityState === 'visible') send()
+    }, PUSH_CHECK_MS)
+    return () => {
+      document.removeEventListener('visibilitychange', send)
+      window.clearInterval(timer)
     }
-    document.addEventListener('visibilitychange', onHide)
-    return () => document.removeEventListener('visibilitychange', onHide)
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [sharedKey, push])
 
