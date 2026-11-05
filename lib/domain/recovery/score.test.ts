@@ -5,6 +5,8 @@ import { computeRecoveryScore } from './score'
 import {
   adjustSleepHours,
   DEFAULT_SLEEP_HOURS,
+  expectedGlassesAt,
+  expectedGlassesFor,
   formatSleepHours,
   MAX_SLEEP_HOURS,
   MIN_SLEEP_HOURS,
@@ -27,9 +29,15 @@ function inputs(partial: Partial<RecoveryInputs> = {}): RecoveryInputs {
     muscleFatigue: null,
     stress: null,
     hydrationGlasses: null,
-    updatedAt: '2026-09-08T08:00:00.000Z',
+    // Por defecto, de noche: los vasos se miden sobre el día completo.
+    updatedAt: localTime(21),
     ...partial,
   }
+}
+
+/** Hora local del día de los tests, para que no dependan de la zona horaria. */
+function localTime(hours: number, minutes = 0): string {
+  return new Date(2026, 8, 8, hours, minutes).toISOString()
 }
 
 test('los pesos aprobados suman exactamente 1', () => {
@@ -233,4 +241,48 @@ test('la hidratación se mide sobre 8 vasos', () => {
   assert.equal(normalizeHydration(8), 100)
   assert.equal(normalizeHydration(12), 100, 'pasarse de 8 no puntúa por encima de 100')
   assert.equal(normalizeHydration(-3), 0)
+})
+
+// ---------------------------------------------------------------------------
+// Ritmo de hidratación (D-083)
+// ---------------------------------------------------------------------------
+
+test('los vasos esperados suben con la hora: 1 de mañana, 2 a las 10:00 y 8 a las 20:00', () => {
+  assert.equal(expectedGlassesAt(0), 1)
+  assert.equal(expectedGlassesAt(8 * 60), 1)
+  assert.equal(expectedGlassesAt(9 * 60 + 30), 1)
+  assert.equal(expectedGlassesAt(10 * 60), 2)
+  assert.equal(expectedGlassesAt(18 * 60), 7)
+  assert.equal(expectedGlassesAt(20 * 60), 8)
+  assert.equal(expectedGlassesAt(23 * 60 + 59), 8)
+})
+
+test('los vasos se miden contra los esperados y pasarse no suma de más', () => {
+  assert.equal(normalizeHydration(2, 2), 100)
+  assert.equal(normalizeHydration(1, 2), 50)
+  assert.equal(normalizeHydration(5, 2), 100)
+  assert.equal(normalizeHydration(0, 2), 0)
+})
+
+test('un vaso a las 9:00 ya no baja la nota', () => {
+  const day = { sleepHours: 8, energy: 4, muscleFatigue: 2, stress: 2 } as const
+  const withoutGlasses = computeRecoveryScore(inputs({ ...day, updatedAt: localTime(9) }))
+  const oneGlass = computeRecoveryScore(inputs({ ...day, hydrationGlasses: 1, updatedAt: localTime(9) }))
+  assert.equal(withoutGlasses.status === 'ok' && withoutGlasses.value, 85)
+  assert.equal(oneGlass.status === 'ok' && oneGlass.value, 86)
+})
+
+test('los mismos vasos valen menos si se registran más tarde', () => {
+  const day = { sleepHours: 8, energy: 4, muscleFatigue: 2, stress: 2, hydrationGlasses: 2 } as const
+  const morning = computeRecoveryScore(inputs({ ...day, updatedAt: localTime(10) }))
+  const evening = computeRecoveryScore(inputs({ ...day, updatedAt: localTime(18) }))
+  assert.ok(morning.status === 'ok' && evening.status === 'ok')
+  if (morning.status !== 'ok' || evening.status !== 'ok') return
+  assert.ok(evening.value < morning.value)
+})
+
+test('un registro con hora inválida o de otro día se mide sobre el día completo', () => {
+  assert.equal(expectedGlassesFor({ dayKey: '2026-09-08', updatedAt: 'no es una fecha' }), 8)
+  assert.equal(expectedGlassesFor({ dayKey: '2026-09-07', updatedAt: localTime(9) }), 8)
+  assert.equal(expectedGlassesFor({ dayKey: '2026-09-08', updatedAt: localTime(9) }), 1)
 })

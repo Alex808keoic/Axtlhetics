@@ -6,8 +6,9 @@
  * pensadas para poder ajustarse sin tocar el resto del cálculo.
  */
 
+import { toDayKey } from '../shared/dates'
 import { clamp, safeDivide } from '../shared/ids'
-import { HYDRATION_GLASS_COUNT, type Scale5 } from './types'
+import { HYDRATION_GLASS_COUNT, type RecoveryInputs, type Scale5 } from './types'
 
 /**
  * Banda de sueño de referencia por edad, en horas por cada 24 h.
@@ -90,10 +91,38 @@ export function normalizeStress(level: Scale5): number {
   return clamp(Math.round(((5 - level) / 4) * 100), 0, 100)
 }
 
-/** 0 vasos → 0, 8 vasos → 100. Más de 8 no puntúa por encima de 100. */
-export function normalizeHydration(glasses: number): number {
+/** Ritmo de hidratación (D-083): el primer vaso cuenta hasta las 8:00 y luego uno cada hora y media. */
+export const HYDRATION_PACE_START_MINUTE = 8 * 60
+export const HYDRATION_PACE_MINUTES_PER_GLASS = 90
+
+/** Vasos que es razonable llevar a esa hora: 1 hasta las 9:30, 2 a las 10:00 y los 8 a las 20:00. */
+export function expectedGlassesAt(minuteOfDay: number): number {
+  const elapsed = minuteOfDay - HYDRATION_PACE_START_MINUTE
+  const glasses = Math.ceil(elapsed / HYDRATION_PACE_MINUTES_PER_GLASS)
+  return clamp(glasses, 1, HYDRATION_GLASS_COUNT)
+}
+
+/**
+ * Vasos esperados para un registro, a la hora en que se tocó por última vez.
+ *
+ * Se usa esa hora y no la actual para que la nota no baje sola con el paso del
+ * día. Si la hora no es válida o es de otro día, el día se juzga completo.
+ */
+export function expectedGlassesFor(inputs: Pick<RecoveryInputs, 'dayKey' | 'updatedAt'>): number {
+  const updatedAt = new Date(inputs.updatedAt)
+  if (Number.isNaN(updatedAt.getTime()) || toDayKey(updatedAt) !== inputs.dayKey) {
+    return HYDRATION_GLASS_COUNT
+  }
+  return expectedGlassesAt(updatedAt.getHours() * 60 + updatedAt.getMinutes())
+}
+
+/**
+ * Vasos frente a los esperados: 0 → 0, los esperados → 100. Pasarse no puntúa por
+ * encima de 100. Sin indicar cuántos se esperan, se mide sobre el día completo.
+ */
+export function normalizeHydration(glasses: number, expected: number = HYDRATION_GLASS_COUNT): number {
   if (!Number.isFinite(glasses) || glasses < 0) return 0
-  const ratio = safeDivide(glasses, HYDRATION_GLASS_COUNT, 0)
+  const ratio = safeDivide(glasses, expected, 0)
   return clamp(Math.round(ratio * 100), 0, 100)
 }
 

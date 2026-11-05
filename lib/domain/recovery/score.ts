@@ -7,7 +7,7 @@
  */
 
 import { clamp, safeDivide } from '../shared/ids'
-import { DEFAULT_SLEEP_AGE, normalizeEnergy, normalizeHydration, normalizeMuscleFatigue, normalizeSleep, normalizeStress } from './scales'
+import { DEFAULT_SLEEP_AGE, expectedGlassesFor, normalizeEnergy, normalizeHydration, normalizeMuscleFatigue, normalizeSleep, normalizeStress } from './scales'
 import type { RecoveryFactor, RecoveryFactorKey, RecoveryInputs, RecoveryScore } from './types'
 import { RECOVERY_FACTOR_LABELS } from './types'
 import { bandFor, RECOVERY_FACTOR_ORDER, RECOVERY_MIN_FACTORS, RECOVERY_REQUIRED_FACTORS, RECOVERY_WEIGHTS } from './weights'
@@ -32,7 +32,9 @@ function normalizeFactor(
     case 'stress':
       return inputs.stress === null ? null : normalizeStress(inputs.stress)
     case 'hydration':
-      return inputs.hydrationGlasses === null ? null : normalizeHydration(inputs.hydrationGlasses)
+      return inputs.hydrationGlasses === null
+        ? null
+        : normalizeHydration(inputs.hydrationGlasses, expectedGlassesFor(inputs))
   }
 }
 

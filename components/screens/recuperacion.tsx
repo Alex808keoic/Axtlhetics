@@ -118,6 +118,9 @@ export function RecuperacionScreen() {
 
       {/* Factores clave: una lista agrupada; cada fila se abre en su sitio. */}
       <SectionHeader title="Factores clave" />
+      <p className="-mt-1 mb-3 text-footnote text-muted-foreground text-pretty">
+        Regístralos a la misma hora cada día: por la mañana o antes de entrenar.
+      </p>
       <ul className="overflow-hidden rounded-2xl border border-border bg-surface shadow-card">
         {/* Sueño */}
         <li className="ax-stagger border-b border-border" style={{ '--ax-index': 0 } as CSSProperties}>

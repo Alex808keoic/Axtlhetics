@@ -404,7 +404,7 @@ Work timer (D-054): a timed entry shows «Empezar · N s» (`startWork`), stored
 
 Without recovery data (D-049; its Inicio check-in card was removed on 2026-10-21, recovery is registered only in Recuperación). Without today's recovery, `unknown_recovery` no longer always means light: it is `TRAINING` (rule `unknown_recovery_normal`, moderate, never hard, «No sé cómo llegas hoy…» and a «Sesión normal, sin apretar de más» closing) unless yesterday or the day before had a registered score below 75 (`facts.recentLowRecovery`, from `context.recentRecovery`, loaded with `recovery.recent(4)`), tomorrow has a high-intensity sport or the training load is high — then `LIGHT_TRAINING` as before.
 
-Input scales, normalization and the "enough data" policy are closed by D-009. They live in `lib/domain/recovery/scales.ts` and `lib/domain/recovery/weights.ts` — change them there, nowhere else.
+Input scales, normalization and the "enough data" policy are closed by D-009. They live in `lib/domain/recovery/scales.ts` and `lib/domain/recovery/weights.ts` — change them there, nowhere else. Since D-083, hydration scores against the glasses expected at the record's `updatedAt` (`expectedGlassesFor`: 1 until 9:30, then one more every 90 minutes, 8 at 20:00), so the score never drifts on its own during the day.
 
 ### AXIS visual identity
 

@@ -2604,6 +2604,20 @@ Lógica, datos, textos, navegación, funciones y las figuras de ejercicios. Solo
 
 ---
 
+## D-083 — La hidratación se mide según la hora
+
+**Fecha:** 2026-11-05 · **Estado:** aprobada e implementada · Decidido por Alex («impleméntalo»), tras ver que un vaso apuntado a las 9:00 bajaba la nota. **Cambia** la normalización de la hidratación de D-009.
+
+**Por qué:** los vasos contaban siempre sobre 8. Por la mañana, apuntar el primero bajaba la recuperación (por ejemplo, de 85 a 78) y podía quitar un día fuerte (D-048, que pide 80).
+
+- **Vasos esperados** (`expectedGlassesAt` en `lib/domain/recovery/scales.ts`): 1 hasta las 9:30 y luego uno más cada hora y media, hasta los 8 a las 20:00. La hidratación puntúa `vasos / esperados × 100`, con tope en 100.
+- **La hora es la del último cambio del registro del día** (`updatedAt`), no la actual: la nota no baja sola con el paso del día, solo cambia cuando el usuario toca algo. Si a las 18:00 cambia cualquier factor, los vasos pasan a medirse a esa hora.
+- **Los días ya guardados** se miden igual, con su última hora de registro, así que sus notas pueden subir un poco en la revisión semanal y en lo que AXIS lee de días anteriores. Una hora inválida o de otro día se mide sobre los 8 vasos.
+- **No cambia:** los pesos (D-002), los 8 vasos en pantalla, ni la energía, la fatiga y el estrés, que siguen sin depender de la hora.
+- **En Recuperación**, bajo «Factores clave»: «Regístralos a la misma hora cada día: por la mañana o antes de entrenar.»
+
+---
+
 ## Decisiones pendientes
 
 Nada de lo que sigue debe inventarse ni resolverse sin aprobación explícita de Alex.
