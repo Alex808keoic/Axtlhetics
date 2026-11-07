@@ -364,6 +364,8 @@ function planSession(
     // Lo que el usuario cuida y su sexo (D-051).
     careZones: context.profile?.careZones ?? [],
     sex: context.profile?.sex ?? null,
+    // Brazos y hombros también en fuerza, si lo pidió (D-092).
+    strengthAccessories: context.profile?.strengthAccessories ?? false,
     // El nivel que el usuario eligió en cada familia (D-065).
     exerciseLevels: context.profile?.exerciseLevels ?? {},
     // Lo que no gusta: lo dicho y lo que se salta a menudo (D-037).

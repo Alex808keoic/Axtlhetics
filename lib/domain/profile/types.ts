@@ -221,6 +221,11 @@ export type UserProfile = {
   sex?: Sex | null
   /** Zonas a cuidar (D-051). Ausente en los perfiles anteriores. */
   careZones?: CareZone[]
+  /**
+   * Brazos y hombros también en las sesiones de fuerza (D-092): para quien
+   * busca fuerza y además estética. Ausente o `false`: la fuerza, solo con compuestos.
+   */
+  strengthAccessories?: boolean
   /** Las preguntas de salud de la evaluación inicial (D-058). Ausente si no se contestaron. */
   health?: HealthScreen
   /** Cuánto ha entrenado y si lo hace ahora (D-058). Ausente si no se contestó. */
@@ -412,6 +417,7 @@ export function isUserProfile(value: unknown): value is UserProfile {
   if (value.careZones !== undefined && !isArrayOf(value.careZones, (item): item is CareZone => isOneOf(item, CARE_ZONE_ORDER))) {
     return false
   }
+  if (value.strengthAccessories !== undefined && typeof value.strengthAccessories !== 'boolean') return false
   if (value.health !== undefined && !isHealthScreen(value.health)) return false
   if (value.background !== undefined && !isTrainingBackground(value.background)) return false
   if (value.nutrition !== undefined && !isNutritionPlan(value.nutrition)) return false

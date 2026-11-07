@@ -86,3 +86,32 @@ test('D-091: las dominadas con lastre suben de peso con las pesas del usuario', 
   const work = suggestWorkFor(exercise('dominadas-lastre'), { intensity: 'moderada', goal: 'fuerza', experience: 'intermedio', gear: FULL })
   assert.equal(work.weightKg, 10)
 })
+
+// ---------------------------------------------------------------------------
+// D-092: brazos y hombros en fuerza, si se piden
+// ---------------------------------------------------------------------------
+
+const STRENGTH_UPPER = { focus: 'tren_superior' as const, intensity: 'moderada' as const, availableMinutes: 60, goals: ['fuerza' as const], experience: 'intermedio' as const, gear: FULL }
+
+function mainIds(session: ReturnType<typeof buildSession>): string[] {
+  return session.exercises.filter(isMainExercise).map((item) => item.exerciseId)
+}
+
+test('D-092: pedidos en el perfil, la sesión de fuerza de tren superior termina con brazos u hombros', () => {
+  const ids = mainIds(buildSession({ ...STRENGTH_UPPER, strengthAccessories: true }))
+  const accessories = ids.filter((id) => ['biceps', 'triceps', 'hombro'].includes(patternOf(exercise(id)) ?? ''))
+  assert.ok(accessories.length >= 1, ids.join(', '))
+  // Detrás de los compuestos.
+  const firstAccessory = ids.findIndex((id) => accessories.includes(id))
+  assert.ok(ids.slice(firstAccessory).every((id) => accessories.includes(id)), ids.join(', '))
+})
+
+test('D-092: sin pedirlos, la fuerza va solo con compuestos, como en D-091', () => {
+  const ids = mainIds(buildSession(STRENGTH_UPPER))
+  assert.ok(!ids.some((id) => ['biceps', 'triceps', 'hombro'].includes(patternOf(exercise(id)) ?? '')), ids.join(', '))
+})
+
+test('D-092: en una sesión de hipertrofia la opción no cambia nada', () => {
+  const base = { ...STRENGTH_UPPER, goals: ['hipertrofia' as const] }
+  assert.deepEqual(mainIds(buildSession({ ...base, strengthAccessories: true })), mainIds(buildSession(base)))
+})

@@ -83,6 +83,14 @@ const INTENSITY_OPTIONS = Object.entries(ACTIVITY_INTENSITY_LABELS).map(([value,
   label,
 }))
 
+/** Los objetivos cuyas sesiones van solo con compuestos, salvo que se pidan brazos y hombros (D-092). */
+const STRENGTH_ACCESSORY_GOALS: readonly TrainingGoal[] = ['fuerza', 'rendimiento_deportivo']
+
+const ACCESSORY_OPTIONS: { value: 'si' | 'no'; label: string }[] = [
+  { value: 'no', label: 'Solo lo básico' },
+  { value: 'si', label: 'Añadirlos' },
+]
+
 /** Cada semana, o solo un día concreto, como un partido (D-018). */
 type ActivityRecurrence = 'weekly' | 'dated'
 
@@ -135,6 +143,7 @@ export function PerfilScreen({
           equipment: equipmentOf(profile),
           sex: profile.sex ?? null,
           careZones: [...(profile.careZones ?? [])],
+          ...(profile.strengthAccessories ? { strengthAccessories: true } : {}),
           // La evaluación inicial (D-058): sin contestar sigue sin contestar hasta que se toque.
           ...(profile.health ? { health: { ...profile.health, flags: [...profile.health.flags] } } : {}),
           ...(profile.background ? { background: { ...profile.background } } : {}),
@@ -271,6 +280,20 @@ export function PerfilScreen({
           value={draft.experience}
           onChange={(experience) => patch({ experience })}
         />
+        {/* Brazos y hombros en fuerza (D-092): solo con un objetivo de fuerza, que es donde faltan. */}
+        {draft.goals.some((goal) => STRENGTH_ACCESSORY_GOALS.includes(goal)) && (
+          <div>
+            <ChoiceGroup
+              label="Brazos y hombros en las sesiones de fuerza"
+              options={ACCESSORY_OPTIONS}
+              value={draft.strengthAccessories ? 'si' : 'no'}
+              onChange={(choice) => patch({ strengthAccessories: choice === 'si' })}
+            />
+            <p className="-mt-1 pb-3 text-footnote text-muted-foreground">
+              Para ganar fuerza y además verte mejor: las sesiones de fuerza de tren superior o de cuerpo completo terminan con brazos u hombros, si da el tiempo.
+            </p>
+          </div>
+        )}
         <BackgroundPicker value={draft.background} onChange={(background) => patch({ background })} />
       </div>
 

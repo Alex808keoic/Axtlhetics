@@ -310,6 +310,8 @@ export type SessionBuildOptions = {
   preferUnilateral?: boolean
   /** Zonas a cuidar (D-051): nada que las cargue entra en la sesión. */
   careZones?: readonly CareZone[]
+  /** Brazos y hombros también en las sesiones de fuerza (D-092). */
+  strengthAccessories?: boolean
   /** Sexo (D-051): ajusta descansos y peso de partida del tren superior. */
   sex?: Sex | null
 }
@@ -1082,6 +1084,36 @@ export const SESSION_TEMPLATES: Partial<Record<SessionFocus, readonly (readonly 
 }
 
 /**
+ * Las plantillas de fuerza con brazos y hombros (D-092), para quien los pide en
+ * su perfil. Los accesorios suben de puesto para que quepan aunque los
+ * descansos largos dejen sitio para pocos ejercicios; en la sesión van igualmente
+ * al final, detrás de los compuestos.
+ */
+export const ACCESSORY_TEMPLATES: Partial<Record<SessionFocus, readonly (readonly MovementPattern[])[]>> = {
+  tren_superior: [
+    ['empuje_horizontal'],
+    ['tiron_vertical', 'tiron_horizontal'],
+    ['empuje_vertical'],
+    ['biceps', 'triceps'],
+    ['hombro', 'biceps', 'triceps'],
+    ['tiron_horizontal', 'tiron_vertical'],
+  ],
+  cuerpo_completo: [
+    ['sentadilla', 'zancada'],
+    ['empuje_horizontal'],
+    ['tiron_vertical', 'tiron_horizontal'],
+    ['bisagra'],
+    ['biceps', 'triceps', 'hombro'],
+    ['core'],
+  ],
+}
+
+/** Los compuestos primero y los accesorios detrás, sin cambiar el orden dentro de cada grupo (D-092). */
+function compoundsFirst(exercises: readonly Exercise[]): Exercise[] {
+  return [...exercises.filter((exercise) => !isIsolation(exercise)), ...exercises.filter(isIsolation)]
+}
+
+/**
  * La selección por patrones (D-073). Cada hueco toma, del orden de rotación de
  * siempre (D-020, D-053), el primero de sus patrones que no repita ejercicio
  * ni familia; prefiere un patrón que la sesión aún no tenga (un tirón vertical
@@ -1192,6 +1224,7 @@ export function buildSession(options: SessionBuildOptions): PlannedSession {
     preferUnilateral = false,
     careZones = [],
     sex = null,
+    strengthAccessories = false,
   } = options
 
   const equipment = availableEquipment(gear)
@@ -1292,11 +1325,14 @@ export function buildSession(options: SessionBuildOptions): PlannedSession {
     .filter((exercise): exercise is Exercise => exercise !== undefined)
     .filter((exercise) => !exhausted(exercise))
     .map(adapt)
+  // Brazos y hombros también en fuerza, si se pidieron (D-092). Las de hipertrofia ya los llevan.
+  const withAccessories = strengthAccessories && LOW_REP_GOALS.includes(goal) && ACCESSORY_TEMPLATES[focus] !== undefined
   const assemble = (count: number): PlannedSession => {
-    const template = SESSION_TEMPLATES[focus]
-    const picked = template
+    const template = withAccessories ? ACCESSORY_TEMPLATES[focus] : SESSION_TEMPLATES[focus]
+    const chosen = template
       ? selectByPattern(pool, focus, template, count, adapt, target, usage, lagging, exhausted)
       : selectExercises(pool, focus, count, adapt, target, usage, lagging)
+    const picked = withAccessories ? compoundsFirst(chosen) : chosen
     const selected = withAnchors(picked, anchors)
 
     // Un objetivo medible gana su hueco: se entrena lo que se quiere mejorar (D-035).
@@ -1368,6 +1404,13 @@ export function buildSession(options: SessionBuildOptions): PlannedSession {
     session = bigger
   }
 
+  // Los brazos y hombros pedidos (D-092): si no han cabido, se les hace sitio con
+  // una serie menos en los compuestos, empezando por el último y sin bajar de 3.
+  if (withAccessories && !hasAccessory(session) && count < maxCount) {
+    const roomier = makeRoom(assemble(count + 1), phaseCatalog, availableMinutes)
+    if (roomier && hasAccessory(roomier)) return roomier
+  }
+
   // Con muy poco tiempo, antes que pasarse: dos series en vez de quitar un patrón
   // (D-073) y, si aún no cabe, dos ejercicios con dos series (D-050).
   if (session.estimatedMinutes > availableMinutes) {
@@ -1380,6 +1423,35 @@ export function buildSession(options: SessionBuildOptions): PlannedSession {
     session = assemble(count)
   }
   return session.estimatedMinutes > availableMinutes ? compact(session) : session
+}
+
+/** Series de un compuesto por debajo de las que no se baja para hacer sitio a los accesorios (D-092). */
+const MIN_COMPOUND_SETS_FOR_ACCESSORIES = 3
+
+/** `true` si el entrenamiento lleva algún ejercicio de brazos u hombro (D-092). */
+function hasAccessory(session: PlannedSession): boolean {
+  return session.exercises.some((item) => {
+    if (!isMainExercise(item)) return false
+    const pattern = patternOf({ id: item.exerciseId })
+    return pattern === 'biceps' || pattern === 'triceps' || pattern === 'hombro'
+  })
+}
+
+/**
+ * La sesión con una serie menos en los compuestos, del último al primero y sin
+ * bajar de 3, hasta que cabe en el tiempo (D-092). `null` si ni así cabe.
+ */
+function makeRoom(session: PlannedSession, catalog: readonly Exercise[], availableMinutes: number): PlannedSession | null {
+  let exercises = [...session.exercises]
+  for (let index = exercises.length - 1; index >= 0; index--) {
+    if (estimateMinutes(exercises) <= availableMinutes) break
+    const item = exercises[index]
+    const exercise = catalog.find((candidate) => candidate.id === item.exerciseId)
+    if (!isMainExercise(item) || !exercise || isIsolation(exercise) || item.sets <= MIN_COMPOUND_SETS_FOR_ACCESSORIES) continue
+    exercises = exercises.map((other, at) => (at === index ? { ...other, sets: other.sets - 1 } : other))
+  }
+  const estimatedMinutes = estimateMinutes(exercises)
+  return estimatedMinutes <= availableMinutes ? { ...session, exercises, estimatedMinutes } : null
 }
 
 /** La sesión con como mucho dos series por ejercicio de entrenamiento (D-050). */

@@ -2751,6 +2751,18 @@ Lógica, datos, textos, navegación, funciones y las figuras de ejercicios. Solo
 
 ---
 
+## D-092 — Brazos y hombros en las sesiones de fuerza, si se piden
+
+**Fecha:** 2026-11-07 · **Estado:** aprobada e implementada · Decidido por Alex («Opción en el perfil»). **Precisa** D-073 y D-091: la fuerza sigue yendo solo con compuestos salvo que se pida esto.
+
+- **Una opción en Perfil**, en «Tu objetivo»: «Brazos y hombros en las sesiones de fuerza» (Solo lo básico / Añadirlos). Solo se enseña con fuerza o rendimiento entre los objetivos, que es donde faltan. Se guarda en el perfil (`strengthAccessories`); ausente es «Solo lo básico». No sale en el onboarding.
+- **Activada, las sesiones de fuerza de tren superior y de cuerpo completo llevan accesorios** (`ACCESSORY_TEMPLATES`): en la plantilla, los huecos de brazos y hombro suben de puesto para que quepan con los descansos largos. En la sesión van igualmente al final, detrás de los compuestos, con repeticiones y descansos de hipertrofia.
+- **Si aun así no caben, se les hace sitio** con una serie menos en los compuestos, del último al primero y sin bajar de 3. Si ni así caben (una sesión corta), la sesión se queda con los básicos.
+- **En tren superior, el precio es el cuarto compuesto** (el segundo tirón) cuando el tiempo solo da para cuatro ejercicios.
+- **Las sesiones de hipertrofia, piernas, movilidad e intervalos no cambian.**
+
+---
+
 ## Decisiones pendientes
 
 Nada de lo que sigue debe inventarse ni resolverse sin aprobación explícita de Alex.
