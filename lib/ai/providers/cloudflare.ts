@@ -22,7 +22,7 @@ export const CLOUDFLARE_DEFAULT_MODEL = '@cf/google/gemma-4-26b-a4b-it'
  * basta para las siete frases de una respuesta larga (D-030) dentro del JSON,
  * y acota el consumo de neurons.
  */
-export const CLOUDFLARE_MAX_COMPLETION_TOKENS = 700
+export const CLOUDFLARE_MAX_COMPLETION_TOKENS = 900
 
 export const CLOUDFLARE_TEMPERATURE = 0.3
 

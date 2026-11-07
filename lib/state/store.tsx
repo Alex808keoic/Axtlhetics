@@ -107,6 +107,7 @@ import {
   type AxisDayMemory,
 } from '../domain/axis/memory'
 import { createAxisConversation, fallbackNoticeOf, suggestionsFor } from '../domain/axis/conversation'
+import { AI_CONVERSATION_ID } from '../domain/axis/conversation/ai'
 import { buildAiMemory, MEMORY_DAYS } from '../domain/axis/conversation/memory-pack'
 import { changeOpeningMessage } from '../domain/axis/conversation/negotiation'
 import type { AxisFallbackNotice, AxisMessage, AxisSuggestion } from '../domain/axis/conversation'
@@ -1306,6 +1307,8 @@ export function AxtlheticsProvider({ children }: { children: ReactNode }) {
           ...(result.modelDisagreed ? { modelDisagreed: true } : {}),
           // Lo que podría preguntar después, propuesto por la IA (D-070).
           ...(result.followUps?.length ? { followUps: result.followUps } : {}),
+          // Quién la escribió, como en Finax (D-094). Lo reescrito por la IA lo contesta el motor.
+          source: result.engineId === AI_CONVERSATION_ID && !result.reinterpretedAs ? 'ia' : 'local',
         }
 
         /*

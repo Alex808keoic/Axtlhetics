@@ -24,6 +24,7 @@ import {
   parseAiAction,
   parseAiResponse,
   reconcileTarget,
+  tidyVoiceText,
   toAiBriefing,
   type AxisAiRequest,
   type AxisAiTransportRequest,
@@ -290,9 +291,9 @@ test('D-070: la forma se arregla en vez de descartar la respuesta: cumplido, emo
     { text: 'Tu recuperación está bien 💪', shown: 'Tu recuperación está bien' },
     { text: '¡Vamos! Tu recuperación está bien.', shown: 'Vamos. Tu recuperación está bien.' },
     {
-      // Una explicación admite 7 frases (D-030): la octava se quita.
-      text: 'Frase uno. Frase dos. Frase tres. Frase cuatro. Frase cinco. Frase seis. Frase siete. Frase ocho.',
-      shown: 'Frase uno. Frase dos. Frase tres. Frase cuatro. Frase cinco. Frase seis. Frase siete.',
+      // Una explicación admite 9 frases (D-094): la décima se quita.
+      text: 'Frase uno. Frase dos. Frase tres. Frase cuatro. Frase cinco. Frase seis. Frase siete. Frase ocho. Frase nueve. Frase diez.',
+      shown: 'Frase uno. Frase dos. Frase tres. Frase cuatro. Frase cinco. Frase seis. Frase siete. Frase ocho. Frase nueve.',
     },
   ]
   for (const item of cases) {
@@ -537,7 +538,7 @@ test('el prompt del proveedor se genera desde la personalidad y añade solo el f
   ]) {
     assert.ok(prompt.includes(line), `falta en el prompt: ${line.slice(0, 50)}`)
   }
-  assert.match(prompt, /Nunca más de 4/)
+  assert.match(prompt, /Nunca más de 6/)
   assert.match(prompt, /No contradigas `domain`/)
   assert.match(prompt, /No propongas un destino distinto/)
 })
@@ -615,4 +616,22 @@ test('D-070 (bloque 3): el prompt trata lo del usuario como datos y pide cuidado
     assert.match(prompt, /un adulto de confianza o con un profesional/)
     assert.match(prompt, /024/)
   }
+})
+
+test('D-094: los párrafos de la IA se conservan al arreglar la forma y al recortar', () => {
+  assert.equal(
+    tidyVoiceText('¡Hoy llegas bien!  Yo iría a piernas.\n\nOjo con la rodilla. Calienta bien.', 'why', null),
+    'Hoy llegas bien. Yo iría a piernas.\n\nOjo con la rodilla. Calienta bien.',
+  )
+  // Recortar por el final no deja un párrafo vacío.
+  const long = Array.from({ length: 12 }, (_, i) => `Frase ${i + 1}.`)
+  const tidied = tidyVoiceText(`${long.slice(0, 6).join(' ')}\n\n${long.slice(6).join(' ')}`, 'why', null)
+  assert.equal(tidied, `${long.slice(0, 6).join(' ')}\n\n${long.slice(6, 9).join(' ')}`)
+})
+
+test('D-094: la voz es la del ecosistema: primera persona y respuestas con algo de desarrollo', () => {
+  const prompt = aiSystemPrompt('why')
+  assert.match(prompt, /primera persona/)
+  assert.match(prompt, /párrafos cortos/)
+  assert.match(chatSystemPrompt(), /pregunta algo general de entrenamiento/)
 })

@@ -1,7 +1,7 @@
 'use client'
 
-import { useEffect, useRef, useState, type CSSProperties, type FormEvent } from 'react'
-import { ArrowLeft, ArrowUp, ArrowUpRight, Check } from 'lucide-react'
+import { useEffect, useRef, useState, type CSSProperties, type FormEvent, type KeyboardEvent } from 'react'
+import { ArrowLeft, ArrowUp, ArrowUpRight, Check, Trash2 } from 'lucide-react'
 import { AxisBadge, AxisSymbol } from '@/components/axis-symbol'
 import { EmptyNote } from '@/components/section-header'
 import type { AxisActionProposal } from '@/lib/domain/axis/actions'
@@ -25,10 +25,14 @@ export function AxisChatScreen({ onClose }: { onClose: () => void }) {
     askAxis,
     briefing,
     axisNote,
+    clearAxisConversation,
   } = useAxtlhetics()
 
   const [draft, setDraft] = useState('')
+  // Borrar pide un segundo toque, como en Mentax (D-094): sin diálogos del sistema.
+  const [confirmClear, setConfirmClear] = useState(false)
   const endRef = useRef<HTMLDivElement | null>(null)
+  const inputRef = useRef<HTMLTextAreaElement | null>(null)
 
   const thinking = axisStatus === 'thinking'
   const isEmpty = axisMessages.length === 0
@@ -49,6 +53,31 @@ export function AxisChatScreen({ onClose }: { onClose: () => void }) {
   const onSubmit = (event: FormEvent) => {
     event.preventDefault()
     void send(draft)
+  }
+
+  // Intro envía; Mayús+Intro, salto de línea (D-094).
+  const onKeyDown = (event: KeyboardEvent<HTMLTextAreaElement>) => {
+    if (event.key === 'Enter' && !event.shiftKey && !event.nativeEvent.isComposing) {
+      event.preventDefault()
+      void send(draft)
+    }
+  }
+
+  // El campo crece con lo escrito, hasta unas cinco líneas.
+  useEffect(() => {
+    const input = inputRef.current
+    if (!input) return
+    input.style.height = 'auto'
+    input.style.height = `${Math.min(input.scrollHeight, 128)}px`
+  }, [draft])
+
+  const clear = () => {
+    if (!confirmClear) {
+      setConfirmClear(true)
+      return
+    }
+    clearAxisConversation()
+    setConfirmClear(false)
   }
 
   return (
@@ -72,7 +101,23 @@ export function AxisChatScreen({ onClose }: { onClose: () => void }) {
             Tu guía de entrenamiento y recuperación
           </p>
         </div>
-        <span className="h-11 w-11" aria-hidden="true" />
+        {/* Borrar la conversación (D-094): un toque lo pregunta, el segundo borra. Lo decidido hoy se conserva. */}
+        {isEmpty ? (
+          <span className="h-11 w-11" aria-hidden="true" />
+        ) : (
+          <button
+            type="button"
+            onClick={clear}
+            onBlur={() => setConfirmClear(false)}
+            aria-label={confirmClear ? 'Pulsa otra vez para borrar la conversación' : 'Borrar conversación'}
+            className={cn(
+              'ax-press -mr-2 flex h-11 min-w-11 items-center justify-center rounded-full px-2',
+              confirmClear ? 'text-footnote font-semibold text-error' : 'text-muted-foreground',
+            )}
+          >
+            {confirmClear ? '¿Borrar?' : <Trash2 className="h-[18px] w-[18px]" strokeWidth={1.75} />}
+          </button>
+        )}
       </header>
 
       {/* Conversación vacía: quién es AXIS y qué se le puede preguntar */}
@@ -121,34 +166,46 @@ export function AxisChatScreen({ onClose }: { onClose: () => void }) {
         </div>
       )}
 
-      {/* Mensajes */}
+      {/*
+        Mensajes, como en el resto del ecosistema AXIS (D-094): lo tuyo, en una
+        burbuja a la derecha; lo de AXIS, con su símbolo y en párrafos, sin burbuja,
+        y debajo quién lo escribió.
+      */}
       {!isEmpty && (
-        <div className="flex-1 space-y-4 py-2">
-          {axisMessages.map((message) => (
-            <div
-              key={message.id}
-              className={cn('ax-enter flex', message.role === 'user' ? 'justify-end' : 'justify-start')}
-            >
-              <div className="max-w-[85%]">
-                <div
-                  className={cn(
-                    'rounded-3xl px-4 py-3 text-callout text-pretty',
-                    message.role === 'user'
-                      ? 'rounded-br-lg bg-primary text-primary-foreground'
-                      : 'rounded-bl-lg bg-surface text-foreground',
-                  )}
-                >
+        <div className="flex-1 space-y-5 py-2">
+          {axisMessages.map((message) =>
+            message.role === 'user' ? (
+              <div key={message.id} className="ax-enter flex justify-end">
+                <p className="max-w-[85%] whitespace-pre-line rounded-3xl rounded-br-lg bg-surface px-4 py-3 text-callout text-foreground text-pretty">
                   {message.text}
-                </div>
-
-                {message.action && <ActionCard action={message.action} />}
+                </p>
               </div>
-            </div>
-          ))}
+            ) : (
+              <div key={message.id} className="ax-enter flex gap-3">
+                <AxisBadge size="md" className="shrink-0" />
+                <div className="min-w-0 flex-1 pt-0.5">
+                  <Paragraphs text={message.text} />
+                  {message.source && (
+                    <p className="mt-2">
+                      <span
+                        className={cn(
+                          'rounded-full px-2 py-0.5 text-caption font-semibold',
+                          message.source === 'ia' ? 'bg-axis-soft text-primary' : 'bg-surface text-muted-foreground',
+                        )}
+                      >
+                        {message.source === 'ia' ? 'IA' : 'Directa'}
+                      </span>
+                    </p>
+                  )}
+                  {message.action && <ActionCard action={message.action} />}
+                </div>
+              </div>
+            ),
+          )}
 
           {/* Lo que podría preguntar a continuación (D-070): solo bajo la última respuesta de AXIS. */}
           {!thinking && lastFollowUps.length > 0 && (
-            <div className="ax-enter flex flex-wrap gap-2">
+            <div className="ax-enter flex flex-wrap gap-2 pl-10">
               {lastFollowUps.map((question) => (
                 <button
                   key={question}
@@ -175,12 +232,10 @@ export function AxisChatScreen({ onClose }: { onClose: () => void }) {
         </div>
       )}
 
-      {/* Aviso honesto cuando la IA falla y responde el motor local */}
-      {axisFallback && (
+      {/* Sin conexión se dice; si no, ya lo dice cada respuesta («IA» o «Directa», D-094). */}
+      {axisFallback === 'offline' && (
         <p className="pb-2 text-center text-caption text-muted-foreground">
-          {axisFallback === 'offline'
-            ? 'Sin conexión: respondo con tus datos locales.'
-            : 'Respuesta directa con tus datos.'}
+          Sin conexión: respondo con tus datos locales.
         </p>
       )}
 
@@ -188,16 +243,19 @@ export function AxisChatScreen({ onClose }: { onClose: () => void }) {
         Input. Pegado abajo aunque la conversación sea corta o larga; el campo y
         el botón de enviar van dentro de la misma pastilla.
       */}
-      <form onSubmit={onSubmit} className="sticky bottom-0 -mx-5 bg-background px-5 pt-2 pb-5">
-        <div className="flex items-center gap-2 rounded-full border border-transparent bg-surface py-1.5 pr-1.5 pl-5 transition-colors focus-within:border-primary/40">
-          <input
-            type="text"
+      <form onSubmit={onSubmit} className="sticky bottom-0 -mx-5 bg-background px-5 pt-2 pb-4">
+        {/* Varias líneas si hace falta (D-094), como en Finax y Mentax. */}
+        <div className="flex items-end gap-2 rounded-3xl border border-transparent bg-surface py-1.5 pr-1.5 pl-5 transition-colors focus-within:border-primary/40">
+          <textarea
+            ref={inputRef}
+            rows={1}
             value={draft}
             onChange={(event) => setDraft(event.target.value)}
-            placeholder="Pregúntale algo a AXIS…"
-            aria-label="Escribe tu pregunta"
+            onKeyDown={onKeyDown}
+            placeholder="Escribe a AXIS…"
+            aria-label="Escribe tu mensaje"
             enterKeyHint="send"
-            className="h-11 min-w-0 flex-1 bg-transparent text-callout outline-none placeholder:text-muted-foreground"
+            className="max-h-32 min-h-11 min-w-0 flex-1 resize-none bg-transparent py-2.5 text-callout leading-snug outline-none placeholder:text-muted-foreground"
           />
           <button
             type="submit"
@@ -208,6 +266,9 @@ export function AxisChatScreen({ onClose }: { onClose: () => void }) {
             <ArrowUp className="h-5 w-5" strokeWidth={2.25} />
           </button>
         </div>
+        <p className="mt-2 text-center text-caption text-muted-foreground">
+          AXIS es una IA de apoyo: puede equivocarse y no sustituye a un médico.
+        </p>
       </form>
     </div>
   )
@@ -318,14 +379,25 @@ function ActionCard({ action }: { action: AxisActionProposal }) {
   )
 }
 
-/** Estado de espera: el símbolo de AXIS gira despacio, como en la app AXIS (D-080). */
+/** Estado de espera: el símbolo de AXIS gira despacio, como en la app AXIS (D-080), donde iría su respuesta. */
 function ThinkingBubble() {
   return (
-    <div className="ax-enter flex justify-start">
-      <div className="flex items-center gap-2.5 rounded-3xl rounded-bl-lg bg-surface px-4 py-3 text-subhead text-muted-foreground" role="status">
-        <AxisSymbol className="ax-spin h-5 w-5" />
-        Pensando…
-      </div>
+    <div className="ax-enter flex items-center gap-3 text-subhead text-muted-foreground" role="status">
+      <AxisSymbol className="ax-spin h-7 w-7" />
+      Pensando…
+    </div>
+  )
+}
+
+/** Lo que escribe AXIS, en párrafos (D-094): la IA los separa con una línea en blanco. */
+function Paragraphs({ text }: { text: string }) {
+  return (
+    <div className="space-y-2.5">
+      {text.split(/\n{2,}/).map((paragraph, index) => (
+        <p key={index} className="whitespace-pre-line text-callout leading-relaxed text-foreground text-pretty">
+          {paragraph}
+        </p>
+      ))}
     </div>
   )
 }

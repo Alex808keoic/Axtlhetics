@@ -74,8 +74,9 @@ export function aiSystemPrompt(intent?: AxisIntent): string {
     'No afirmes nada del usuario —historial, sesiones, recuperación, sueño, molestias o preferencias— que no esté en `domain.text`, en `briefing` o en la conversación. Que algo no aparezca no significa que no haya ocurrido: dilo con naturalidad («no sé cómo has dormido»), sin hablar de registros, y nunca lo conviertas en un hecho. Lo que te ha contado él sí lo puedes usar.',
     long
       ? 'Aquí se espera una respuesta de entrenador, desarrollada: empieza por la conclusión, explica el porqué con sus datos, di qué cambia en concreto y termina con un consejo práctico para hoy. Sin relleno ni frases genéricas.'
-      : 'Si la pregunta es sencilla, contesta corto y al grano.',
+      : 'Si la pregunta es sencilla, ve al grano, pero no te quedes en el dato: añade el porqué o lo que tú harías con él, como haría su entrenador.',
     `Responde en ${length.targetSentences}. Nunca más de ${length.maxSentences}.`,
+    PARAGRAPHS_RULE,
     MEMORY_RULE,
     SERIOUS_RULE,
     DATA_RULE,
@@ -86,6 +87,10 @@ export function aiSystemPrompt(intent?: AxisIntent): string {
     'Si `domain.proposedTarget` no es null y la conversación va de cambiar el entrenamiento, copia ese mismo objeto en `action.target` y pon `action.type` a "change_training". No propongas un destino distinto del que te da el dominio: se descartaría.',
   ].join('\n')
 }
+
+/** Párrafos cortos, como en el resto del ecosistema AXIS (D-094). */
+const PARAGRAPHS_RULE =
+  'Si la respuesta pasa de 3 frases, sepárala en párrafos cortos con una línea en blanco entre ellos («\\n\\n» dentro de `message`). Sin listas, viñetas ni encabezados salvo que enumeres pasos. Que se lea como un mensaje de alguien, no como un informe.'
 
 /** Las preguntas de seguimiento (D-070): lo que el usuario podría preguntarte a continuación. */
 const FOLLOW_UPS_RULE =
@@ -120,9 +125,11 @@ export function chatSystemPrompt(): string {
   return [
     AXIS_SYSTEM_PROMPT,
     '',
-    'AHORA ESTÁS CHARLANDO.',
-    'El usuario no te pide nada concreto del entrenamiento: te saluda, te pregunta qué tal, te da las gracias, se despide, bromea o comenta algo suelto. Recibes `question` (lo que acaba de escribir) y `briefing` (sus datos de hoy). Los mensajes anteriores son la conversación de hoy hasta ahora.',
+    'AHORA HABLÁIS CON LIBERTAD.',
+    'El usuario no te pide nada que el motor haya resuelto: te saluda, te da las gracias, comenta algo suelto, o te pregunta algo general de entrenamiento, ejercicio, recuperación, sueño, alimentación o deporte («¿es malo entrenar con agujetas?», «¿cómo gano más fuerza?»). Recibes `question` (lo que acaba de escribir) y `briefing` (sus datos de hoy). Los mensajes anteriores son la conversación de hoy hasta ahora.',
     'Contesta como un buen entrenador en un chat con alguien a quien conoce: natural, cercano, con algo de humor si encaja, y sin sonar a plantilla. Responde a lo que ha dicho de verdad: si dice que está aburrido, que está contento o que ha tenido un mal día, reacciona a eso como lo haría una persona.',
+    // Más libertad a la IA (D-094), como en Finax: lo general de su entrenamiento también se contesta.
+    'Si te pregunta algo general de entrenamiento, recuperación, alimentación o deporte, contéstalo de verdad, como un entrenador que sabe del tema: con conocimiento general y bien asentado, aterrizado a lo que sabes de él (sus objetivos, su material, sus deportes, cómo va su semana). Di qué harías tú y por qué. Explícalo sin cifras concretas. Si para responder bien hace falta un profesional (dolor, una lesión, una dieta), dilo.',
     'Escribe con tus palabras y no repitas lo que ya has dicho en la conversación: si ya mencionaste la sesión de hoy, no vuelvas a hacerlo.',
     'No propongas cambios de sesión, de zona ni alternativas: eso lo decide el motor cuando el usuario lo pide. Si parece que quiere cambiar algo, dile que te lo pida.',
     'La sesión de hoy (`briefing.proposal`) la mencionas solo si viene a cuento —en el primer saludo, o si sirve para lo que ha dicho—, en pocas palabras y sin cifras. Muchas respuestas no la necesitan.',
@@ -131,7 +138,8 @@ export function chatSystemPrompt(): string {
     'Si `domain.text` no está vacío, es algo que tu respuesta tiene que incluir, con tus palabras.',
     NAME_RULE,
     'No afirmes nada del usuario que no esté en `briefing` o en la conversación. Sin cifras, sin emojis y sin signos de exclamación. No empieces por «Genial», «Perfecto», «Claro» ni «Por supuesto».',
-    'Responde en 1–2 frases, como en un chat.',
+    'Si es charla (un saludo, un gracias, un comentario), responde en 1–3 frases, como en un chat. Si es una pregunta de entrenamiento, en 2–5 frases.',
+    PARAGRAPHS_RULE,
     MEMORY_RULE,
     SERIOUS_RULE,
     DATA_RULE,
@@ -147,8 +155,14 @@ export function chatSystemPrompt(): string {
  * una buena respuesta).
  */
 export function tidyChatText(text: string, name: string | null): string {
-  const named = name ? text.replace(/\{nombre\}/g, name) : text.replace(/,?\s*\{nombre\}/g, '')
-  return named.replace(/¡/g, '').replace(/!+/g, '.').replace(/\.{2,}/g, '.').replace(/\s+/g, ' ').trim()
+  const named = name ? text.replace(/\{nombre\}/g, name) : text.replace(/,?[ \t]*\{nombre\}/g, '')
+  const cleaned = named.replace(/¡/g, '').replace(/!+/g, '.').replace(/\.{2,}/g, '.')
+  // Los párrafos se conservan (D-094); dentro de cada uno, espacios simples.
+  return cleaned
+    .split(/\n\s*\n/)
+    .map((paragraph) => paragraph.replace(/\s+/g, ' ').trim())
+    .filter((paragraph) => paragraph.length > 0)
+    .join('\n\n')
 }
 
 /**
@@ -425,7 +439,8 @@ export type AxisAiTransport = {
 }
 
 /** Cuánto se espera al modelo antes de responder con el determinista. */
-export const AI_TIMEOUT_MS = 8000
+// Las respuestas más largas de D-094 tardan más en escribirse: por encima del plazo de la cadena (11 s).
+export const AI_TIMEOUT_MS = 13000
 
 /**
  * Transporte real contra un endpoint propio del mismo origen.

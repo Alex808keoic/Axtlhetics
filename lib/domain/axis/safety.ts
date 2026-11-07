@@ -480,11 +480,13 @@ const EMOJI_ALL = /[\p{Extended_Pictographic}\u{FE0F}\u{200D}]/gu
  * comprobando `checkModelText`, que se aplica después.
  */
 export function tidyModelText(text: string, intent: AxisIntent, personality: AxisPersonality = AXIS_PERSONALITY): string {
+  // Los párrafos se conservan (D-094): se marcan antes de juntar espacios y se recuperan al final.
   let out = text
     .replace(EMOJI_ALL, '')
     .replace(/¡/g, '')
     .replace(/!+/g, '.')
     .replace(/\.{2,}/g, '.')
+    .replace(/\n\s*\n/g, ` ${PARAGRAPH_MARK} `)
     .replace(/\s+/g, ' ')
     .replace(/\s+([.,;:])/g, '$1')
     .trim()
@@ -501,13 +503,27 @@ export function tidyModelText(text: string, intent: AxisIntent, personality: Axi
 
   // Las frases que sobran se quitan por el final; los decimales («2.5 kg») no parten frases.
   const { maxSentences, maxCharacters } = lengthLimitsFor(intent, personality)
-  let sentences = out.split(/(?<=[.?…])\s+/).filter((s) => s.length > 0)
+  // Cada frase recuerda si abría párrafo, para volver a separarlos tras el recorte.
+  let sentences = out
+    .split(PARAGRAPH_MARK)
+    .flatMap((paragraph) =>
+      paragraph
+        .trim()
+        .split(/(?<=[.?…])\s+/)
+        .filter((s) => s.length > 0)
+        .map((s, index) => ({ text: s, opens: index === 0 })),
+    )
+  const joined = (list: typeof sentences) =>
+    list.map((s, index) => (index > 0 && s.opens ? `\n\n${s.text}` : index > 0 ? ` ${s.text}` : s.text)).join('')
   if (sentences.length > maxSentences) sentences = sentences.slice(0, maxSentences)
-  while (sentences.length > 1 && sentences.join(' ').length > maxCharacters) sentences = sentences.slice(0, -1)
-  out = sentences.join(' ')
+  while (sentences.length > 1 && joined(sentences).length > maxCharacters) sentences = sentences.slice(0, -1)
+  out = joined(sentences)
   if (out.length > maxCharacters) out = `${out.slice(0, out.lastIndexOf(' ', maxCharacters - 1))}…`
   return out
 }
+
+/** Marca interna de párrafo mientras se arregla el texto: nunca sale (D-094). No es un espacio, para que los espacios no la junten. */
+const PARAGRAPH_MARK = String.fromCharCode(0xe000)
 
 export type ModelTextCheckOptions = {
   /**

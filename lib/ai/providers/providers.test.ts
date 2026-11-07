@@ -64,8 +64,8 @@ test('Cloudflare pide Gemma sin razonamiento, con temperatura baja, salida acota
   assert.equal(body(cloudflareProvider.request({ ...request, domain: { ...request.domain, intent: 'unknown' } }, { CF_ACCOUNT_ID: ACCOUNT, CF_API_TOKEN: 't' }).init).temperature, CLOUDFLARE_TEMPERATURE)
   assert.equal(CLOUDFLARE_TEMPERATURE, 0.3)
   assert.equal(sent.max_completion_tokens, CLOUDFLARE_MAX_COMPLETION_TOKENS)
-  // Siete frases de respuesta larga (D-030) caben; un techo, para acotar el consumo.
-  assert.ok(CLOUDFLARE_MAX_COMPLETION_TOKENS >= 600 && CLOUDFLARE_MAX_COMPLETION_TOKENS <= 800)
+  // Nueve frases de respuesta larga (D-094) caben; un techo, para acotar el consumo.
+  assert.ok(CLOUDFLARE_MAX_COMPLETION_TOKENS >= 800 && CLOUDFLARE_MAX_COMPLETION_TOKENS <= 1000)
   assert.deepEqual(sent.chat_template_kwargs, { enable_thinking: false })
   assert.deepEqual(sent.response_format, { type: 'json_object' })
   assert.deepEqual(sent.messages, [

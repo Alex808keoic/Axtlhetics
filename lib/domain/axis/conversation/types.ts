@@ -73,6 +73,11 @@ export type AxisMessage = {
   modelDisagreed?: boolean
   /** Las preguntas de seguimiento de esta respuesta (D-070): botones bajo el último mensaje. */
   followUps?: string[]
+  /**
+   * Quién escribió la respuesta (D-094): la IA o el motor local. Se enseña bajo
+   * el mensaje, como en Finax. Ausente en los mensajes anteriores.
+   */
+  source?: 'ia' | 'local'
 }
 
 /**

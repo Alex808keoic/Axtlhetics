@@ -2791,6 +2791,33 @@ Lógica, datos, textos, navegación, funciones y las figuras de ejercicios. Solo
 
 ---
 
+## D-094 — AXIS habla como en el resto del ecosistema
+
+**Fecha:** 2026-11-07 · **Estado:** aprobada e implementada · Pedido por Alex («que responda más como las otras apps»: tono y voz, respuestas más largas, más libertad a la IA y el aspecto del chat). **Cambia** D-030 y D-070 (longitud y voz) y D-042 (la charla). Las decisiones del entrenamiento siguen siendo del motor.
+
+### Voz y longitud
+
+- **Primera persona y natural, como en Finax**: «yo hoy iría a tren superior», «aquí tendría un poco de cuidado». Sin registro de informe («se recomienda», «es conveniente»), con expresiones como «Ojo con esto.» cuando encajan. Siguen fuera los emojis, las exclamaciones, los cumplidos de apertura y el lenguaje médico.
+- **Más largas**: las respuestas cortas pasan de 1–3 frases (máx. 4) a **2–4 (máx. 6)**; las explicaciones, de 4–6 (máx. 7) a **3–6 en dos o tres párrafos (máx. 9)**. Una respuesta de un dato ya no se queda en el dato: añade el porqué o lo que haría su entrenador.
+- **Párrafos cortos** separados por una línea en blanco cuando pasa de 3 frases. El recorte por longitud los conserva.
+
+### Más libertad a la IA
+
+- **La conversación libre** (antes «charla», D-042) también contesta **preguntas generales de entrenamiento, recuperación, alimentación o deporte** («¿es malo entrenar con agujetas?»), con conocimiento general aterrizado a lo que sabe del usuario, en 2–5 frases y sin cifras concretas. Lo ajeno a AXTHLETICS sigue desviándose y lo médico sigue en el determinista.
+- **Más tiempo para escribir**: la cadena de proveedores pasa de 7 a 11 s (6 s para el principal), la ruta de 10 a 14 s y la espera del móvil de 8 a 13 s; Cloudflare puede escribir hasta 900 tokens.
+- Las puertas no cambian: cifras solo de los datos, nada del usuario que no esté en el briefing, el veredicto y la propuesta del motor mandan.
+
+### El chat
+
+- **Lo de AXIS va con su símbolo al lado y en párrafos, sin burbuja**, como en Finax; lo del usuario, en una burbuja clara a la derecha.
+- **Cada respuesta dice quién la escribió**: «IA» o «Directa» (el motor local), en lugar del aviso general. Sin conexión se sigue diciendo abajo.
+- **El campo de escribir admite varias líneas**: crece hasta unas cinco; Intro envía y Mayús+Intro salta de línea.
+- **Borrar la conversación** desde la cabecera, con un segundo toque para confirmar, como en Mentax. Lo decidido hoy se conserva.
+- **Aviso bajo el campo**: «AXIS es una IA de apoyo: puede equivocarse y no sustituye a un médico.»
+- «Pensando…» va con el símbolo girando donde irá la respuesta.
+
+---
+
 ## Decisiones pendientes
 
 Nada de lo que sigue debe inventarse ni resolverse sin aprobación explícita de Alex.

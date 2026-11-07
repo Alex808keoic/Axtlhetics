@@ -25,11 +25,11 @@ import type { LanguageProvider, ProviderEnv, ProviderId } from './providers/type
 /** El orden de la cadena: el principal primero. */
 export const PROVIDER_CHAIN: readonly LanguageProvider[] = [cloudflareProvider, groqProvider]
 
-/** Todo lo que puede durar la cadena. Menor que la espera del navegador (8 s). */
-export const CHAIN_DEADLINE_MS = 7000
+/** Todo lo que puede durar la cadena. Menor que la espera del navegador (13 s, D-094). */
+export const CHAIN_DEADLINE_MS = 11000
 
 /** Lo que se le da a un proveedor que no es el último, para dejar tiempo al siguiente. */
-export const PRIMARY_ATTEMPT_MS = 4000
+export const PRIMARY_ATTEMPT_MS = 6000
 
 /** Con menos tiempo que esto no merece la pena empezar un intento. */
 export const MIN_ATTEMPT_MS = 1000

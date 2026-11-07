@@ -164,7 +164,7 @@ test('D-042: la charla la escribe el modelo, con su prompt, más temperatura y e
   assert.equal(result.intent, 'social')
   assert.equal(result.text, 'Hola, Alex. Hoy toca tren inferior. ¿Qué tal has dormido?')
   assert.equal(sent.length, 1)
-  assert.match(sent[0].system, /AHORA ESTÁS CHARLANDO/)
+  assert.match(sent[0].system, /AHORA HABLÁIS CON LIBERTAD/)
   // El nombre sigue sin salir del dispositivo.
   assert.doesNotMatch(JSON.stringify(sent[0].briefing), /Alex/)
   assert.equal(temperatureFor(sent[0] as Parameters<typeof temperatureFor>[0], 0.3), CHAT_TEMPERATURE)

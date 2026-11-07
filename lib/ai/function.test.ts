@@ -183,7 +183,8 @@ test('la propia aplicación pasa el filtro de origen aunque el entorno no diga n
 
 test('la ruta corre en Node.js y se corta después de nuestro propio timeout, nunca antes', async () => {
   assert.equal(runtime, 'nodejs')
-  assert.equal(maxDuration, 10)
+  // D-094: más plazo para las respuestas largas.
+  assert.equal(maxDuration, 14)
   assert.ok(maxDuration * 1000 > CHAIN_DEADLINE_MS, 'el corte lo da nuestro código, con código propio')
   // Un `config` de Netlify aquí rompería el build de Next.
   const route = await import('../../app/api/axis-ai/route')

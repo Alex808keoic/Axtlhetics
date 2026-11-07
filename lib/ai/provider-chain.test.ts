@@ -163,7 +163,8 @@ test('la acción del modelo viaja tal cual: la valida el dominio, en el cliente'
 // ---------------------------------------------------------------------------
 
 test('el plazo cabe en lo que espera el navegador y deja tiempo al respaldo', () => {
-  assert.equal(CHAIN_DEADLINE_MS, 7000)
+  // D-094: más plazo para las respuestas largas.
+  assert.equal(CHAIN_DEADLINE_MS, 11000)
   assert.ok(PRIMARY_ATTEMPT_MS < CHAIN_DEADLINE_MS)
   assert.ok(CHAIN_DEADLINE_MS - PRIMARY_ATTEMPT_MS >= MIN_ATTEMPT_MS, 'a Groq siempre le queda tiempo')
 })
@@ -188,7 +189,7 @@ test('Cloudflare tiene su propio tope y un cuelgue suyo acaba en Groq', async ()
 test('si no queda tiempo para Groq, no se le llama', async () => {
   let clock = 0
   const { result, calls, logs } = await run(
-    { cloudflare: () => { clock += 6500; return httpError(500) }, groq: chat(GOOD) },
+    { cloudflare: () => { clock += 10500; return httpError(500) }, groq: chat(GOOD) },
     BOTH,
     { now: () => clock },
   )

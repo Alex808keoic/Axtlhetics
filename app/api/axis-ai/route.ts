@@ -39,12 +39,12 @@ import { storeConfigFromEnv } from '../../../lib/push/store'
 /**
  * Configuración del route handler (Vercel Functions, runtime Node.js).
  *
- * `maxDuration` va por encima del plazo de la cadena (7 s) para que quien corte
+ * `maxDuration` va por encima del plazo de la cadena (11 s) para que quien corte
  * sea siempre nuestro código, con un código propio, y no la plataforma con un
  * 504 vacío.
  */
 export const runtime = 'nodejs'
-export const maxDuration = 10
+export const maxDuration = 14
 
 /**
  * Las credenciales y modelos, leídos del entorno del servidor.
