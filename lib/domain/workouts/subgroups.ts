@@ -106,6 +106,17 @@ export const EXERCISE_SUBGROUPS: Readonly<Record<string, readonly Subgroup[]>> =
   'plancha-jacks': [],
   'escaladores-cruzados': [],
   'boxeo-sombra': [],
+  // --- Fuerza en casa (D-091) -----------------------------------------------
+  'flexiones-arquero': ['triceps'],
+  'flexion-pino-pared': ['triceps'],
+  'fondos-paralelas': ['triceps'],
+  'remo-invertido': ['biceps'],
+  'remo-invertido-pies-elevados': ['biceps'],
+  'dominadas-lastre': ['biceps'],
+  'sentadilla-caja-una-pierna': ['cuadriceps'],
+  'sentadilla-pistol': ['cuadriceps'],
+  'zancada-bulgara-mancuernas': ['cuadriceps'],
+  'curl-nordico': ['isquios'],
 }
 
 export function subgroupsOf(exerciseId: string): readonly Subgroup[] {

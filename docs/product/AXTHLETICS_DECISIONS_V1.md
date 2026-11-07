@@ -2726,6 +2726,31 @@ Lógica, datos, textos, navegación, funciones y las figuras de ejercicios. Solo
 
 ---
 
+## D-091 — Fuerza en casa: la revisión de un entrenador de fuerza
+
+**Fecha:** 2026-11-07 · **Estado:** aprobada e implementada · Decidido por Alex («arregla todo»), tras una revisión del motor como entrenador de fuerza con sesiones simuladas. **Cambia** D-008 y D-046 (catálogo y relaciones), D-031 (descarga), D-047 y D-073 (repeticiones, descansos y plantillas de fuerza) y D-049 (recuperación moderada).
+
+### Catálogo: 96 ejercicios (10 nuevos)
+
+- **Lo que era final de cadena tiene continuación:** flexiones diamante y declinadas → **flexiones arquero**; flexión pica → **flexión en pino contra la pared**; dominadas → **dominadas con lastre** (la pesa en una mochila o entre los pies; entra en la lista cerrada de bilaterales con una pesa); zancada búlgara → **zancada búlgara con pesas**; puente con talones en silla → **nórdico de isquios** (`curl-nordico`).
+- **Nuevas cadenas:** sentadilla → **sentadilla a una pierna a la silla** → **sentadilla pistol**; **remo invertido** bajo una mesa → **con pies elevados** (regresa al remo con pesa). Y **fondos en paralelas** entre dos sillas.
+- El remo invertido y el nórdico cubren lo que no tenía sustituto sin máquinas: el tirón horizontal sin pesas y los isquios.
+
+### Cómo se trabaja la fuerza
+
+- **Sin carga no se recortan repeticiones** (`baseRepsFor`): 5 flexiones de quien hace 15 no son fuerza, son menos trabajo. La fuerza llega por la variante más exigente y por subir de variante al dominarla. Los saltos de potencia sí se recortan.
+- **Las piernas sin peso que de verdad cuestan (dificultad 3 o más) son trabajo de fuerza** (`DEMANDING_BODYWEIGHT_DIFFICULTY`): series de más y descanso largo. Las fáciles siguen como en D-089.
+- **Los compuestos de fuerza descansan al menos 2 min 30 s** (antes 2 min).
+- **Un accesorio no se propone si hasta la pesa más ligera pasa del doble de su referencia de partida** (`tooHeavyToStart`): con un par de 10 kg, nada de laterales con 10 kg. Si ya se hizo con esa pesa, sigue. Los compuestos no se apartan: se hacen a menos repeticiones.
+- **La sesión de piernas tiene hueco para el core**, antes de los gemelos: con un reparto por zonas se quedaba semanas sin trabajar.
+
+### Descarga y recuperación
+
+- **El estancamiento adelanta la descarga** (`deloadReason`): desde la tercera semana cargada, si en las dos últimas el 40 % o más de los ejercicios (con al menos 6) no se completó como estaba previsto, toca descargar. AXIS dice el motivo. Las cuatro semanas siguen siendo el máximo.
+- **Recuperación aceptable (60–74) sin fatiga alta = sesión normal** (`acceptable_recovery`). Mucha gente vive ahí, y mandarla siempre a ligera era no acercarse nunca a lo que hace progresar. De 50 a 59, o con la fatiga alta, sigue siendo ligera. El día fuerte sigue pidiendo una recuperación buena.
+
+---
+
 ## Decisiones pendientes
 
 Nada de lo que sigue debe inventarse ni resolverse sin aprobación explícita de Alex.

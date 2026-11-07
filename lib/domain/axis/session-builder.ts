@@ -32,6 +32,7 @@ import {
   LEGACY_EQUIPMENT,
   loadsFor,
   nextLoad,
+  START_LOAD_FACTOR,
   startingLoad,
   type UserEquipment,
 } from '../workouts/equipment'
@@ -105,7 +106,8 @@ type GoalParams = {
 }
 
 export const GOAL_PARAMS: Record<TrainingGoal, GoalParams> = {
-  fuerza: { repFactor: 0.6, setShift: 1, difficultyShift: 1, minRest: 120, maxRest: null, tempo: null },
+  // Los compuestos de fuerza descansan al menos 2 min 30 s (D-091): con menos no se recupera la serie.
+  fuerza: { repFactor: 0.6, setShift: 1, difficultyShift: 1, minRest: 150, maxRest: null, tempo: null },
   hipertrofia: { repFactor: 1, setShift: 0, difficultyShift: 0, minRest: 60, maxRest: 90, tempo: null },
   rendimiento_deportivo: { repFactor: 0.7, setShift: 0, difficultyShift: 0, minRest: 90, maxRest: null, tempo: null },
   tecnica: { repFactor: 0.8, setShift: 1, difficultyShift: -1, minRest: null, maxRest: null, tempo: '3-1-1' },
@@ -136,6 +138,9 @@ export const LOW_REP_START_FACTOR = 1.5
  */
 export const LIGHT_BODYWEIGHT_REPS = 12
 
+/** Dificultad desde la que una pierna sin peso ya es trabajo de fuerza (D-091). */
+export const DEMANDING_BODYWEIGHT_DIFFICULTY = 3
+
 /**
  * `true` si el ejercicio se queda corto para repeticiones bajas: con carga, si
  * la más pesada que tiene el usuario no da; sin carga, si es de los fáciles.
@@ -143,7 +148,10 @@ export const LIGHT_BODYWEIGHT_REPS = 12
 export function lightLoadFor(exercise: Exercise, gear: UserEquipment = LEGACY_EQUIPMENT): boolean {
   if (exercise.work.isTimed) return false
   // Las piernas sin peso tampoco dan para repeticiones bajas: 6 zancadas no son fuerza (D-089).
-  if (!usesLoad(exercise)) return exercise.work.reps >= LIGHT_BODYWEIGHT_REPS || exercise.category === 'piernas'
+  // Las que de verdad cuestan, sí (D-091): la sentadilla a una pierna, la búlgara o el nórdico.
+  if (!usesLoad(exercise)) {
+    return exercise.work.reps >= LIGHT_BODYWEIGHT_REPS || (exercise.category === 'piernas' && exercise.difficulty < DEMANDING_BODYWEIGHT_DIFFICULTY)
+  }
   if (exercise.startLoadKg === undefined) return false
   const loads = loadsFor(exercise, gear)
   const heaviest = loads[loads.length - 1]
@@ -172,7 +180,37 @@ export function sessionGoalFrom(goals: readonly TrainingGoal[]): TrainingGoal {
 export function baseRepsFor(exercise: Exercise, goal: TrainingGoal = DEFAULT_GOAL): number {
   // Los isométricos y los intervalos se miden en segundos: el objetivo no los recorta.
   if (exercise.work.isTimed) return exercise.work.reps
+  // Sin carga, recortar repeticiones no es más fuerza, es menos trabajo (D-091): la fuerza llega
+  // por la variante más exigente (dificultad +1) y por subir de variante al dominarla.
+  if (LOW_REP_GOALS.includes(goal) && !usesLoad(exercise) && exercise.category !== 'pliometria') return exercise.work.reps
   return Math.max(5, Math.round(exercise.work.reps * GOAL_PARAMS[goal].repFactor))
+}
+
+/**
+ * Cuántas veces la referencia de partida puede pasar la pesa más ligera del
+ * usuario (D-091). Más allá, el ejercicio no se propone: con un par de 10 kg,
+ * unas elevaciones laterales de 3 kg de referencia no son un punto de partida.
+ */
+export const MAX_START_OVERLOAD = 2
+
+/**
+ * `true` si hasta la pesa más ligera del usuario es demasiado para empezar el
+ * accesorio (D-091). Quien ya lo ha hecho con ella sigue con él: lo manda su
+ * historial, no la referencia.
+ */
+export function tooHeavyToStart(
+  exercise: Exercise,
+  options: { gear: UserEquipment; experience: ExperienceLevel; sex?: Sex | null; history?: readonly WorkoutSession[] },
+): boolean {
+  // Solo los accesorios: un compuesto con una pesa pesada se hace a menos repeticiones; unas laterales, no.
+  if (!isIsolation(exercise) || !usesLoad(exercise) || exercise.startLoadKg === undefined) return false
+  const loads = loadsFor(exercise, options.gear)
+  if (loads.length === 0) return false
+  if (lastPerformanceOf(exercise.id, options.history ?? [])) return false
+  const upperBody = exercise.category === 'empuje' || exercise.category === 'tiron'
+  const sexFactor = options.sex === 'mujer' && upperBody ? FEMALE_UPPER_START_FACTOR : 1
+  const reference = exercise.startLoadKg * (START_LOAD_FACTOR[options.experience] ?? 1) * sexFactor
+  return loads[0] > reference * MAX_START_OVERLOAD
 }
 
 /** Con «mujer» (D-051), los descansos de fuerza son un 15 % más cortos, nunca menos de 45 s. */
@@ -560,8 +598,11 @@ function withApproachSets(
 
     const easier =
       !usesLoad(exercise) && exercise.regressionId ? catalog.find((item) => item.id === exercise.regressionId) : undefined
+    // La más fácil, si también es sin pesa (D-091): el remo invertido regresa al remo con pesa, que pediría un peso.
     const used =
-      easier && isAvailable(easier, equipment) && !easier.work.isTimed && !loadsCareZone(easier.id, careZones) ? easier : exercise
+      easier && isAvailable(easier, equipment) && !easier.work.isTimed && !usesLoad(easier) && !loadsCareZone(easier.id, careZones)
+        ? easier
+        : exercise
 
     // El primero con carga sube por rampa hasta el peso de trabajo (D-063).
     const ramp = !ramped && usesLoad(used) && planned.suggestedWeightKg !== null
@@ -1028,7 +1069,8 @@ export const SESSION_TEMPLATES: Partial<Record<SessionFocus, readonly (readonly 
     ['biceps', 'triceps'],
     ['biceps', 'triceps', 'hombro'],
   ],
-  tren_inferior: [['sentadilla'], ['bisagra'], ['zancada'], ['bisagra', 'gluteo'], ['gemelos'], ['zancada', 'sentadilla']],
+  // El core entra en la de piernas (D-091): con un reparto por zonas, si no, se queda semanas sin trabajar.
+  tren_inferior: [['sentadilla'], ['bisagra'], ['zancada'], ['bisagra', 'gluteo'], ['core'], ['gemelos']],
   cuerpo_completo: [
     ['sentadilla', 'zancada'],
     ['empuje_horizontal'],
@@ -1161,7 +1203,9 @@ export function buildSession(options: SessionBuildOptions): PlannedSession {
   const forFocus = exercisesForFocus(focus, catalog)
   // Filtros innegociables: nada que necesite material inexistente ni que cargue una zona a cuidar (D-051).
   const cares = (exercise: { id: string }) => !loadsCareZone(exercise.id, careZones)
-  const executable = forFocus.filter((exercise) => isAvailable(exercise, equipment) && cares(exercise))
+  // Ni lo que, con sus pesas más ligeras, ya es demasiado para empezar (D-091).
+  const heavy = (exercise: Exercise) => tooHeavyToStart(exercise, { gear, experience, sex, history })
+  const executable = forFocus.filter((exercise) => isAvailable(exercise, equipment) && cares(exercise) && !heavy(exercise))
   const allowed = exercisesAvoidingGroups(executable, avoidMuscleGroups)
 
   // Si evitar grupos deja la sesión demasiado corta, es mejor una sesión completa
@@ -1220,7 +1264,7 @@ export function buildSession(options: SessionBuildOptions): PlannedSession {
       let level = chosen
       while (!deload && hasMastered(level, history, gear, goal)) {
         const harder = variantOf(level, 'harder', catalog, equipment)
-        if (harder === level || !cares(harder)) break
+        if (harder === level || !cares(harder) || heavy(harder)) break
         level = harder
       }
       return level
@@ -1232,8 +1276,9 @@ export function buildSession(options: SessionBuildOptions): PlannedSession {
       goal,
       mode: deload ? 'deload' : intensity === 'ligera' ? 'light' : 'normal',
     })
-    // Una variante que carga una zona a cuidar no sustituye a la que no la carga (D-051).
-    return cares(variant) ? variant : exercise
+    // Una variante que carga una zona a cuidar no sustituye a la que no la carga (D-051),
+    // ni una que pide más peso del que se puede empezar (D-091).
+    return cares(variant) && !heavy(variant) ? variant : exercise
   }
   // Dominado y sin variante más difícil: ya no da más de sí, mejor otro de su patrón si lo hay (D-089).
   const exhausted = (exercise: Exercise): boolean => {

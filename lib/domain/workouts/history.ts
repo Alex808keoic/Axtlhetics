@@ -86,6 +86,15 @@ export function lastPerformanceOf(
 }
 
 /**
+ * `true` si el ejercicio se hizo como estaba previsto: todas las series con sus
+ * repeticiones, o por debajo solo por subir de peso en la sesión (D-089). Es
+ * lo que lee la descarga por estancamiento (D-091).
+ */
+export function completedAsPlanned(performed: PerformedExercise): boolean {
+  return metTarget(performed) || metTargetRaisingWeight(performed)
+}
+
+/**
  * Se hicieron todas las series y las que se quedaron por debajo de las
  * repeticiones previstas fue por subir de peso en la sesión (D-055): eso no es
  * dejar el ejercicio a medias (D-089).

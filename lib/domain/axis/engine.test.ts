@@ -127,10 +127,32 @@ test('con fatiga muscular muy alta recomienda recuperar aunque el resto vaya bie
   assert.equal(decision.primary.type, 'RECOVERY')
 })
 
-test('con recuperación moderada propone sesión ligera', () => {
+test('D-091: con una recuperación aceptable (60–74) y sin fatiga alta, sesión normal, nunca día fuerte', () => {
+  // 7 h de sueño y todo lo demás en la media: 66.
   const decision = decide(
     contextWith({
       recoveryInputs: recovery({ sleepHours: 7, energy: 3, muscleFatigue: 3, stress: 3, hydrationGlasses: 3 }),
+    }),
+  )
+  assert.equal(decision.primary.type, 'TRAINING')
+  assert.equal(decision.primary.rule, 'acceptable_recovery')
+  assert.equal(decision.primary.session?.intensity, 'moderada')
+})
+
+test('D-091: con una recuperación aceptable pero la fatiga alta, sigue siendo ligera', () => {
+  const decision = decide(
+    contextWith({
+      recoveryInputs: recovery({ sleepHours: 7, energy: 3, muscleFatigue: 4, stress: 3, hydrationGlasses: 3 }),
+    }),
+  )
+  assert.equal(decision.primary.type, 'LIGHT_TRAINING')
+  assert.equal(decision.primary.rule, 'moderate_recovery')
+})
+
+test('con recuperación moderada propone sesión ligera', () => {
+  const decision = decide(
+    contextWith({
+      recoveryInputs: recovery({ sleepHours: 6, energy: 3, muscleFatigue: 3, stress: 3, hydrationGlasses: 3 }),
     }),
   )
   assert.equal(decision.primary.type, 'LIGHT_TRAINING')
@@ -616,7 +638,7 @@ test('un día suave con la movilidad pendiente es de movilidad (D-047)', () => {
     contextWith({
       profile: profile({ goals: ['fuerza', 'movilidad'], availableWeekdays: [0, 2, 4] }),
       // Recuperación moderada: día suave.
-      recoveryInputs: recovery({ sleepHours: 7, energy: 3, muscleFatigue: 3, stress: 3, hydrationGlasses: 4 }),
+      recoveryInputs: recovery({ sleepHours: 6, energy: 3, muscleFatigue: 3, stress: 3, hydrationGlasses: 4 }),
       recentSessions: [session()],
     }),
   )
@@ -674,7 +696,7 @@ test('ajustar la dificultad no deja la sesión corta ni con ejercicios repetidos
 test('una sesión ligera elige variantes más accesibles', () => {
   const light = decide(
     contextWith({
-      recoveryInputs: recovery({ sleepHours: 7, energy: 3, muscleFatigue: 3, stress: 3, hydrationGlasses: 3 }),
+      recoveryInputs: recovery({ sleepHours: 6, energy: 3, muscleFatigue: 3, stress: 3, hydrationGlasses: 3 }),
       recentSessions: [session()],
     }),
   )

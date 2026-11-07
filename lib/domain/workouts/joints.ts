@@ -111,6 +111,17 @@ export const EXERCISE_JOINTS: Readonly<Record<string, readonly CareZone[]>> = {
   burpees: ['muneca', 'hombro', 'rodilla', 'tobillo'],
   'saltos-estrella': ['rodilla', 'tobillo'],
   'zancadas-salto': ['rodilla', 'tobillo', 'cadera'],
+  // --- Fuerza en casa (D-091) -------------------------------------------------
+  'flexiones-arquero': ['hombro', 'codo', 'muneca'],
+  'flexion-pino-pared': ['hombro', 'codo', 'muneca', 'cuello'],
+  'fondos-paralelas': ['hombro', 'codo', 'muneca'],
+  'remo-invertido': ['hombro', 'codo'],
+  'remo-invertido-pies-elevados': ['hombro', 'codo'],
+  'dominadas-lastre': ['hombro', 'codo'],
+  'sentadilla-caja-una-pierna': ['rodilla', 'cadera', 'tobillo'],
+  'sentadilla-pistol': ['rodilla', 'cadera', 'tobillo'],
+  'zancada-bulgara-mancuernas': ['rodilla', 'cadera', 'tobillo'],
+  'curl-nordico': ['rodilla'],
 }
 
 /** Las articulaciones que carga un ejercicio. Uno que no está en la tabla, ninguna. */

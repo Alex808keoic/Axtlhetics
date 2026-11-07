@@ -13,7 +13,7 @@
  */
 
 import { addDays, startOfWeek, type DayKey } from '../shared/dates'
-import { DELOAD_AFTER_WEEKS, isDeloadWeek } from './deload'
+import { DELOAD_AFTER_WEEKS, isDeloadWeek, loadedWeeksBefore } from './deload'
 import type { Exercise, SessionFocus, WorkoutSession } from './types'
 import { isMainExercise } from './types'
 
@@ -57,7 +57,9 @@ function continuesBlock(history: readonly WorkoutSession[], monday: DayKey): boo
 export function currentBlock(history: readonly WorkoutSession[], today: DayKey): TrainingBlock {
   const monday = startOfWeek(today)
   if (isDeloadWeek(history, today)) {
-    return { start: addDays(monday, -7 * DELOAD_AFTER_WEEKS), week: BLOCK_WEEKS, deload: true }
+    // La descarga cierra lo cargado antes de ella: cuatro semanas, o tres si llegó antes por estancamiento (D-091).
+    const loaded = loadedWeeksBefore(history, monday)
+    return { start: addDays(monday, -7 * loaded), week: loaded + 1, deload: true }
   }
   let streak = 0
   while (streak < BLOCK_WEEKS * 3 && continuesBlock(history, addDays(monday, -7 * (streak + 1)))) streak += 1

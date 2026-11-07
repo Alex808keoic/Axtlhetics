@@ -78,12 +78,15 @@ const BASE = { intensity: 'moderada' as const, goals: ['hipertrofia' as const], 
 // ---------------------------------------------------------------------------
 
 test('cada sesión sirve a un objetivo: la de fuerza baja las repeticiones y suma una serie, sin bajar de 5 (D-047)', () => {
-  const flexiones = exercise('flexiones')
-  const fuerza = suggestWorkFor(flexiones, { ...BASE, goal: 'fuerza' })
-  const hipertrofia = suggestWorkFor(flexiones, { ...BASE, goal: 'hipertrofia' })
+  // Con carga suficiente (D-073): un remo con 20 kg.
+  const heavy: UserEquipment = { items: [], weights: [{ kind: 'mancuerna', kg: 20, pair: false }] }
+  const remo = exercise('remo-unilateral')
+  const fuerza = suggestWorkFor(remo, { ...BASE, goal: 'fuerza', gear: heavy })
+  const hipertrofia = suggestWorkFor(remo, { ...BASE, goal: 'hipertrofia', gear: heavy })
   assert.ok(fuerza.reps < hipertrofia.reps)
   assert.ok(fuerza.reps >= 5)
   assert.equal(fuerza.sets, hipertrofia.sets + 1)
+  const flexiones = exercise('flexiones')
   // Con varios objetivos en el perfil y sin objetivo de sesión, fuerza general: ya no se promedian.
   assert.deepEqual(
     suggestWorkFor(flexiones, { ...BASE, goals: ['fuerza', 'resistencia'] }),
@@ -608,7 +611,8 @@ test('los ejercicios sin familia se eligen exactamente como antes', () => {
 test('si no hay familias suficientes, se repite familia antes que dejar la sesión corta', () => {
   // Solo zancadas: tres ejercicios de la misma familia y nada más en piernas.
   const onlyLunges = EXERCISE_CATALOG.filter(
-    (item) => item.category !== 'piernas' || ['zancadas', 'zancada-atras', 'zancada-bulgara'].includes(item.id),
+    // Sin core: desde D-091 tiene hueco en la sesión de piernas.
+    (item) => (item.category !== 'piernas' && item.category !== 'core') || ['zancadas', 'zancada-atras', 'zancada-bulgara'].includes(item.id),
   )
   const session = ids(buildSession({ ...ROTATION, experience: 'avanzado', intensity: 'alta', focus: 'tren_inferior', catalog: onlyLunges }))
 
@@ -768,11 +772,12 @@ test('D-089: lo dominado sin variante más difícil deja su hueco a otro del pat
   assert.ok(after.some((id) => patternOf(exercise(id)) === 'empuje_vertical'), `sigue habiendo empuje vertical: ${after.join(', ')}`)
 })
 
-test('D-089: las piernas sin peso no se trabajan a repeticiones bajas; con peso suficiente, sí', () => {
+test('D-089, D-091: lo de peso corporal no recorta repeticiones en fuerza', () => {
   const session = buildSession({ focus: 'tren_inferior', intensity: 'moderada', availableMinutes: 60, goals: ['fuerza'], goal: 'fuerza', experience: 'intermedio' })
   for (const item of session.exercises.filter(isMainExercise)) {
-    if (exercise(item.exerciseId).category === 'piernas' && !usesLoad(exercise(item.exerciseId)) && !item.isTimed) {
-      assert.ok(item.reps >= 8, `${item.name}: ${item.reps}`)
+    const found = exercise(item.exerciseId)
+    if (found.category === 'piernas' && !usesLoad(found) && !item.isTimed) {
+      assert.ok(item.reps >= found.work.reps, `${item.name}: ${item.reps}`)
     }
   }
 })
@@ -830,7 +835,9 @@ test('D-086: con muchas repeticiones y el mismo peso, la aproximación sobra', (
 })
 
 test('D-086: lo ya trabajado está caliente: tras la sentadilla con pesa, la zancada no se aproxima', () => {
-  const { exercises } = buildSession({ ...ROTATION, focus: 'tren_inferior', goals: ['fuerza'], goal: 'fuerza' })
+  // Sin las sentadillas a una pierna de D-091, que en fuerza le ganan el hueco a la de 5 kg.
+  const catalog = EXERCISE_CATALOG.filter((item) => !['sentadilla-caja-una-pierna', 'sentadilla-pistol'].includes(item.id))
+  const { exercises } = buildSession({ ...ROTATION, focus: 'tren_inferior', goals: ['fuerza'], goal: 'fuerza', catalog })
   const main = exercises.filter(isMainExercise).map((item) => item.exerciseId)
   assert.ok(main.includes('sentadilla-con-pesa') && main.includes('zancadas'), main.join(', '))
   assert.ok(main.indexOf('sentadilla-con-pesa') < main.indexOf('zancadas'))

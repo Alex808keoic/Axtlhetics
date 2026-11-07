@@ -2,7 +2,7 @@ import assert from 'node:assert/strict'
 import test from 'node:test'
 
 import { addDays, type DayKey } from '../shared/dates'
-import { DELOAD_AFTER_WEEKS, isDeloadWeek, LOADED_WEEK_MIN_SESSIONS } from './deload'
+import { DELOAD_AFTER_WEEKS, deloadReason, isDeloadWeek, isStalling, LOADED_WEEK_MIN_SESSIONS } from './deload'
 import type { WorkoutSession } from './types'
 
 /** Lunes 2026-10-12. */
@@ -57,4 +57,45 @@ test('D-031: no se encadenan dos descargas: la semana de descarga cuenta como fl
 test('D-031: las sesiones abandonadas no cargan la semana', () => {
   const history = [...week(1, 2, { status: 'abandoned' }), ...week(2), ...week(3), ...week(4)]
   assert.equal(isDeloadWeek(history, MONDAY), false)
+})
+
+// ---------------------------------------------------------------------------
+// D-091: el estancamiento adelanta la descarga
+// ---------------------------------------------------------------------------
+
+/** Tres ejercicios por sesión: `missed` de ellos sin completar lo previsto. */
+function stalled(missed: number): Partial<WorkoutSession> {
+  return {
+    exercises: ['flexiones', 'sentadilla', 'remo-unilateral'].map((exerciseId, index) => ({
+      exerciseId,
+      name: exerciseId,
+      targetSets: 3,
+      targetReps: 10,
+      sets: [10, 10, index < missed ? 6 : 10].map((reps) => ({ reps, weightKg: null, completed: true })),
+    })),
+  }
+}
+
+test('D-091: con tres semanas cargadas y estancamiento en las dos últimas, descarga ya', () => {
+  const history = [...week(1, 2, stalled(2)), ...week(2, 2, stalled(1)), ...week(3)]
+  assert.equal(deloadReason(history, MONDAY), 'estancamiento')
+  assert.equal(isDeloadWeek(history, addDays(MONDAY, 6)), true, 'el domingo, igual que el lunes')
+})
+
+test('D-091: progresando bien, tres semanas no bastan', () => {
+  const history = [...week(1, 2, stalled(0)), ...week(2, 2, stalled(0)), ...week(3)]
+  assert.equal(deloadReason(history, MONDAY), null)
+})
+
+test('D-091: el estancamiento solo cuenta desde la tercera semana cargada', () => {
+  const history = [...week(1, 2, stalled(3)), ...week(2, 2, stalled(3))]
+  assert.equal(deloadReason(history, MONDAY), null)
+})
+
+test('D-091: las cuatro semanas siguen siendo descarga por calendario', () => {
+  assert.equal(deloadReason(LOADED, MONDAY), 'calendario')
+})
+
+test('D-091: con pocos ejercicios no se juzga el estancamiento', () => {
+  assert.equal(isStalling(week(1, 1, stalled(3)), addDays(MONDAY, -7), MONDAY), false)
 })

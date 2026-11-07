@@ -9,7 +9,7 @@
 import { createId, nowIso } from '../shared/ids'
 import { EXERCISE_CATALOG, exercisesForFocus, isAvailable } from '../workouts/catalog'
 import { gearToday } from './context'
-import { DELOAD_AFTER_WEEKS, isDeloadWeek } from '../workouts/deload'
+import { deloadReason, describeDeloadReason, isDeloadWeek, type DeloadReason } from '../workouts/deload'
 import { blockAnchors } from '../workouts/blocks'
 import { JUMP_SPORT_TERMS } from './knowledge/sports'
 import { planSummary, type PhysiquePlan } from '../scanner/physique'
@@ -75,7 +75,8 @@ export function decide(context: AxisContext): AxisDecision {
   const blocked = blockedFocuses(context)
   const goal = goalOfTheDay(context, facts, outcome.type, week, blocked)
   const plan: DayPlan = { week, goal, blocked }
-  const deload = isDeloadWeek(context.recentSessions, context.dayKey)
+  const deloadWhy = deloadReason(context.recentSessions, context.dayKey)
+  const deload = deloadWhy !== null
 
   // La evaluación inicial (D-058): sin visto bueno del médico, o al empezar, no se aprieta.
   const clearance = needsMedicalClearance(context.profile)
@@ -101,7 +102,7 @@ export function decide(context: AxisContext): AxisDecision {
   const sportFactor = training ? yesterdaySportFactor(facts, plan) : null
   const [firstRule, ...otherRules] = outcome.factors
   const factors = [
-    ...(deload && training ? [deloadFactor()] : []),
+    ...(deloadWhy && training ? [deloadFactor(deloadWhy)] : []),
     ...(firstRule ? [firstRule] : []),
     // Lo que se cuida va antes que lo demás: es seguridad (D-051).
     ...(careFactor ? [careFactor] : []),
@@ -543,11 +544,11 @@ function physiqueFactor(plan: PhysiquePlan): AxisFactor | null {
   }
 }
 
-function deloadFactor(): AxisFactor {
+function deloadFactor(reason: DeloadReason): AxisFactor {
   return {
     key: 'deload_week',
     label: 'Semana de descarga',
-    detail: `Llevas ${DELOAD_AFTER_WEEKS} semanas seguidas entrenando con regularidad: esta semana es de descarga, con una serie menos por ejercicio y sin subir, para asimilar lo acumulado.`,
+    detail: `${describeDeloadReason(reason)}: esta semana es de descarga, con una serie menos por ejercicio y sin subir, para asimilar lo acumulado.`,
     direction: 'limits',
   }
 }

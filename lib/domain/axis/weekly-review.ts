@@ -18,7 +18,7 @@ import { addDays, startOfWeek, type DayKey } from '../shared/dates'
 import { listNames } from '../shared/text'
 import { currentBlock } from '../workouts/blocks'
 import { findExercise } from '../workouts/catalog'
-import { DELOAD_AFTER_WEEKS } from '../workouts/deload'
+import { DELOAD_AFTER_WEEKS, deloadReason, describeDeloadReason } from '../workouts/deload'
 import { formatKg } from '../workouts/history'
 import { bestOneRepMax, roundKg } from '../workouts/strength'
 import { isMainExercise, MUSCLE_GROUP_LABELS, type Exercise, type WorkoutSession } from '../workouts/types'
@@ -169,7 +169,10 @@ function nextWeek(
   const lines: string[] = []
   const block = currentBlock(context.sessions, context.today)
   if (block.deload) {
-    lines.push(`Esta semana es de descarga: llevas ${DELOAD_AFTER_WEEKS} semanas seguidas y toca asimilarlas.`)
+    const why = deloadReason(context.sessions, context.today)
+    lines.push(why === 'estancamiento'
+      ? `Esta semana es de descarga: ${describeDeloadReason(why).charAt(0).toLowerCase()}${describeDeloadReason(why).slice(1)}.`
+      : `Esta semana es de descarga: llevas ${DELOAD_AFTER_WEEKS} semanas seguidas y toca asimilarlas.`)
   } else if (block.week === 1) {
     lines.push('Empieza un bloque nuevo: elijo tus ejercicios principales en la primera sesión de cada zona.')
   } else {

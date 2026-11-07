@@ -328,6 +328,34 @@ const unknownRecovery: Rule = {
   },
 }
 
+/**
+ * Recuperación aceptable (D-091): de aquí a «buena», sin la fatiga alta, la
+ * sesión es normal. Mucha gente vive en 60–70: mandarla siempre a ligera es no
+ * acercarse nunca a lo que hace progresar. Nunca es día fuerte: eso pide «buena».
+ */
+export const ACCEPTABLE_RECOVERY = 60
+
+const acceptableRecovery: Rule = {
+  id: 'acceptable_recovery',
+  evaluate(facts) {
+    if (facts.recoveryValue === null) return null
+    if (facts.recoveryValue < ACCEPTABLE_RECOVERY || facts.recoveryValue >= RECOVERY_BAND_THRESHOLDS.good) return null
+    if (facts.fatigueLevel !== null && facts.fatigueLevel >= HIGH_FATIGUE_LEVEL) return null
+    return {
+      type: 'TRAINING',
+      rule: 'acceptable_recovery',
+      factors: [
+        {
+          key: 'recovery_score',
+          label: 'Recuperación aceptable',
+          detail: `Tu recuperación de hoy está en ${facts.recoveryValue}: da para una sesión normal.`,
+          direction: 'supports',
+        },
+      ],
+    }
+  },
+}
+
 const moderateRecovery: Rule = {
   id: 'moderate_recovery',
   evaluate(facts) {
@@ -410,6 +438,7 @@ export const AXIS_RULES: readonly Rule[] = [
   highTrainingLoad,
   lowIntake,
   unknownRecovery,
+  acceptableRecovery,
   moderateRecovery,
   goodRecovery,
   fallback,

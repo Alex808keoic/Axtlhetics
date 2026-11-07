@@ -190,6 +190,39 @@ const hinge = (hip: Point, torso: number, arm: LimbSpec): Keyframe => ({
   foot: 90,
 })
 
+/** Zancada búlgara: el pie de atrás sobre una silla. */
+const bulgarian: FigureSpec = {
+  props: [{ kind: 'box', x: 30, y: 152, w: 40, h: 45 }],
+  frames: [
+    { hip: [118, 121], torso: 180, arm: hanging, leg: { to: [150, 194], bend: -1 }, farLeg: { to: [56, 148], bend: -1 }, foot: 90, farFoot: -90 },
+    { hip: [114, 150], torso: 180, arm: hanging, leg: { to: [150, 194], bend: -1 }, farLeg: { to: [56, 148], bend: -1 }, foot: 90, farFoot: -90 },
+  ],
+}
+
+/**
+ * Remo invertido (D-091): boca arriba bajo una mesa, el cuerpo en línea desde
+ * los tobillos y las manos en el borde. Arriba, el pecho sube hacia la mesa.
+ */
+const invertedRow = (ankle: Point, angles: [number, number], hand: Point, props: FigureSpec['props']): FigureSpec => ({
+  faces: -1,
+  props,
+  frames: [rowFrame(ankle, angles[0], hand), rowFrame(ankle, angles[1], hand)],
+})
+
+function rowFrame(ankle: Point, angle: number, hand: Point): Keyframe {
+  const body = line(ankle, angle)
+  return { hip: body.hip, torso: body.torso, leg: body.leg, arm: { to: hand, bend: 1 }, foot: 180 }
+}
+
+/** Curl nórdico (D-091): de rodillas, el cuerpo cae recto hacia delante girando sobre la rodilla. */
+const NORDIC_KNEE: Point = [110, 190]
+const nordicFrame = (lean: number, arm: LimbSpec): Keyframe => ({
+  hip: along(NORDIC_KNEE, 180 - lean, BONES.thigh),
+  torso: 180 - lean,
+  arm,
+  leg: { a: -lean, b: -90 },
+})
+
 /** Sentado en el suelo con las piernas estiradas hacia delante. */
 const SEATED_HIP: Point = [84, 186]
 const seated = (arm: LimbSpec): Keyframe => ({ hip: SEATED_HIP, torso: 172, arm, leg: { a: 90, b: 90 }, foot: 180 })
@@ -271,13 +304,7 @@ export const FIGURES: Readonly<Record<string, FigureSpec>> = {
   'sentadilla-con-pesa': { weight: true, frames: squat(155, [{ a: 25, b: 160 }, { a: 25, b: 160 }]) },
   zancadas: lunge,
   'zancada-atras': lunge,
-  'zancada-bulgara': {
-    props: [{ kind: 'box', x: 30, y: 152, w: 40, h: 45 }],
-    frames: [
-      { hip: [118, 121], torso: 180, arm: hanging, leg: { to: [150, 194], bend: -1 }, farLeg: { to: [56, 148], bend: -1 }, foot: 90, farFoot: -90 },
-      { hip: [114, 150], torso: 180, arm: hanging, leg: { to: [150, 194], bend: -1 }, farLeg: { to: [56, 148], bend: -1 }, foot: 90, farFoot: -90 },
-    ],
-  },
+  'zancada-bulgara': bulgarian,
   'peso-muerto-unilateral': {
     weight: true,
     frames: [
@@ -615,7 +642,38 @@ export const FIGURES: Readonly<Record<string, FigureSpec>> = {
       { hip: [116, 108], torso: 180, arm: { a: 30, b: 100 }, farArm: { a: -30, b: 20 }, leg: { to: [104, 182], bend: -1 }, farLeg: { to: [140, 176], bend: -1 }, foot: 40, farFoot: 70 },
     ],
   },
-
+  // --- Fuerza en casa (D-091) ------------------------------------------------
+  'flexiones-arquero': floorPushUp,
+  'flexion-pino-pared': {
+    props: [{ kind: 'wall', x: 146 }],
+    frames: [
+      { hip: [120, 90], torso: 0, arm: { to: [112, 196], bend: 1 }, leg: { a: 170, b: 170 }, foot: 180 },
+      { hip: [120, 116], torso: 0, arm: { to: [112, 196], bend: 1 }, leg: { a: 170, b: 170 }, foot: 180 },
+    ],
+  },
+  'fondos-paralelas': {
+    props: [{ kind: 'box', x: 100, y: 114, w: 8, h: 83 }],
+    frames: [
+      { hip: [118, 110], torso: 175, arm: { to: [110, 113], bend: 1 }, leg: { a: 20, b: -80 }, foot: 90 },
+      { hip: [116, 140], torso: 165, arm: { to: [110, 113], bend: 1 }, leg: { a: 20, b: -80 }, foot: 90 },
+    ],
+  },
+  'remo-invertido': invertedRow([40, 192], [100, 112], [172, 117], [{ kind: 'box', x: 150, y: 110, w: 84, h: 6 }]),
+  'remo-invertido-pies-elevados': invertedRow([40, 150], [90, 98], [172, 100], [
+    { kind: 'box', x: 18, y: 154, w: 40, h: 43 },
+    { kind: 'box', x: 150, y: 93, w: 84, h: 6 },
+  ]),
+  'dominadas-lastre': pullUp,
+  'sentadilla-caja-una-pierna': {
+    props: [{ kind: 'box', x: 44, y: 150, w: 40, h: 47 }],
+    frames: squat(142, [{ a: 90, b: 90 }, { a: 90, b: 90 }]),
+  },
+  'sentadilla-pistol': { frames: squat(142, [{ a: 90, b: 90 }, { a: 90, b: 90 }]) },
+  'zancada-bulgara-mancuernas': { ...bulgarian, weight: 'pair' },
+  'curl-nordico': {
+    props: [{ kind: 'box', x: 30, y: 172, w: 38, h: 25 }],
+    frames: [nordicFrame(0, { a: 20, b: 60 }), nordicFrame(45, { a: 60, b: 90 })],
+  },
 }
 
 export function figureFor(exerciseId: string): FigureSpec | null {

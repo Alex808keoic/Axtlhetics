@@ -108,7 +108,8 @@ export type ExerciseCategory =
 
 export const FOCUS_CATEGORIES: Record<SessionFocus, ExerciseCategory[]> = {
   tren_superior: ['empuje', 'tiron'],
-  tren_inferior: ['piernas'],
+  // El core, para el hueco que le da la plantilla de piernas (D-091).
+  tren_inferior: ['piernas', 'core'],
   cuerpo_completo: ['empuje', 'tiron', 'piernas', 'core'],
   core_movilidad: ['core', 'movilidad'],
   acondicionamiento: ['acondicionamiento'],

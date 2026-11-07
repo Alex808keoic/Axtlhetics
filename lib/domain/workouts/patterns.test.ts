@@ -112,12 +112,14 @@ test('fuerza con una pesa que se queda corta: repeticiones normales y bajada len
   assert.equal(workGoalFor(squat, 'fuerza', HOME_GYM), 'hipertrofia', '10 kg no dan para fuerza en sentadilla')
   assert.equal(workGoalFor(squat, 'fuerza', HEAVY), 'fuerza', 'con 20 kg, sí')
 
-  const session = buildSession({ ...BASE, focus: 'tren_inferior', availableMinutes: 50, goals: ['fuerza'] })
+  // Sin las sentadillas a una pierna de D-091, que en fuerza le ganan el hueco a la de 10 kg.
+  const catalog = EXERCISE_CATALOG.filter((item) => !['sentadilla-caja-una-pierna', 'sentadilla-pistol'].includes(item.id))
+  const session = buildSession({ ...BASE, focus: 'tren_inferior', availableMinutes: 50, goals: ['fuerza'], catalog })
   const planned = main(session).find((item) => item.exerciseId === 'sentadilla-con-pesa')!
   assert.ok(planned.reps >= 10, `${planned.reps}`)
   assert.equal(planned.tempo, SLOW_TEMPO)
 
-  const heavy = buildSession({ ...BASE, gear: HEAVY, focus: 'tren_inferior', availableMinutes: 50, goals: ['fuerza'] })
+  const heavy = buildSession({ ...BASE, gear: HEAVY, focus: 'tren_inferior', availableMinutes: 50, goals: ['fuerza'], catalog })
   const loaded = main(heavy).find((item) => item.exerciseId === 'sentadilla-con-pesa')!
   assert.ok(loaded.reps < 10, `${loaded.reps}`)
 })

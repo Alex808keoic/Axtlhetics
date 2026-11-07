@@ -55,7 +55,8 @@ test('todo ejercicio con una sola pesa es unilateral, salvo la lista explícita 
 test('la lista de bilaterales es cerrada: existen, usan la pesa y no son unilaterales', () => {
   assert.deepEqual(
     [...SINGLE_WEIGHT_BILATERAL_IDS].sort(),
-    ['hip-thrust-con-pesa', 'pullover-con-pesa', 'sentadilla-con-pesa'],
+    // D-091: las dominadas con lastre, con la pesa en una mochila o entre los pies.
+    ['dominadas-lastre', 'hip-thrust-con-pesa', 'pullover-con-pesa', 'sentadilla-con-pesa'],
     'añadir uno es una decisión, no un descuido',
   )
   for (const id of SINGLE_WEIGHT_BILATERAL_IDS) {
@@ -231,14 +232,15 @@ test('sin grupos que evitar no se filtra nada', () => {
 // Validaciones del catálogo ampliado (D-020)
 // ---------------------------------------------------------------------------
 
-test('el catálogo tiene 86 ejercicios: 23 de D-008, 16 de D-020, 4 de D-020.1, 1 de D-025, 5 de D-033, 3 de D-045, 25 de D-046 y 9 de D-047', () => {
-  // Cada ampliación es una decisión: antes este test fijaba 39, luego 43, 44, 49, 51, 76 y 85.
-  assert.equal(EXERCISE_CATALOG.length, 86)
+test('el catálogo tiene 96 ejercicios: 23 de D-008, 16 de D-020, 4 de D-020.1, 1 de D-025, 5 de D-033, 3 de D-045, 25 de D-046, 9 de D-047 y 10 de D-091', () => {
+  // Cada ampliación es una decisión: antes este test fijaba 39, luego 43, 44, 49, 51, 76, 85 y 86.
+  assert.equal(EXERCISE_CATALOG.length, 96)
 })
 
 test('con una sola pesa, lo nuevo de D-046 pide material que no hay; el acondicionamiento (D-047) no pide nada', () => {
   const legacy = availableExercises(EXERCISE_CATALOG, DEFAULT_EQUIPMENT)
-  assert.equal(legacy.length, 61)
+  // 61 hasta D-091, que suma 9 que se hacen con una pesa o sin nada (las dominadas con lastre piden barra).
+  assert.equal(legacy.length, 70)
 })
 
 test('el acondicionamiento es por tiempo y sin carga (D-047)', () => {
@@ -371,16 +373,17 @@ test('los cuatro ejercicios de D-020.1 existen con su categoría, dificultad, ma
 
 test('las relaciones de los 39 ejercicios anteriores no cambian', () => {
   // [dificultad, regresión, progresión] tal y como estaban en d719b81; la familia de la flexión, recalibrada en D-073.
+  // D-091 da continuación a los que eran final de cadena: diamante, declinadas, pica, búlgara y puente con talones.
   const before: Record<string, [number, string | null, string | null]> = {
     'flexiones-inclinadas': [1, null, 'flexiones'],
     'flexiones-negativas': [1, null, 'flexiones'],
     'flexiones': [2, 'flexiones-inclinadas', 'flexiones-diamante'],
-    'flexiones-diamante': [3, 'flexiones', null],
+    'flexiones-diamante': [3, 'flexiones', 'flexiones-arquero'],
     'press-hombro-unilateral': [2, null, null],
     'extension-triceps-unilateral': [2, null, null],
     'press-suelo-unilateral': [1, null, null],
-    'flexiones-declinadas': [3, 'flexiones', null],
-    'flexion-pica': [3, null, null],
+    'flexiones-declinadas': [3, 'flexiones', 'flexiones-arquero'],
+    'flexion-pica': [3, null, 'flexion-pino-pared'],
     'patada-triceps-unilateral': [1, null, null],
     'superman': [1, null, 'remo-unilateral'],
     'remo-unilateral': [2, 'superman', 'remo-renegado'],
@@ -393,14 +396,14 @@ test('las relaciones de los 39 ejercicios anteriores no cambian', () => {
     'sentadilla-con-pesa': [2, 'sentadilla', 'zancada-bulgara'],
     'zancadas': [2, 'sentadilla', 'zancada-bulgara'],
     'zancada-atras': [2, 'sentadilla', 'zancada-bulgara'],
-    'zancada-bulgara': [4, 'zancadas', null],
+    'zancada-bulgara': [4, 'zancadas', 'zancada-bulgara-mancuernas'],
     'peso-muerto-unilateral': [3, 'puente-gluteos', null],
     'puente-gluteos': [1, null, 'peso-muerto-unilateral'],
     'elevacion-gemelos': [1, null, 'elevacion-gemelos-una-pierna'],
     'elevacion-gemelos-una-pierna': [2, 'elevacion-gemelos', null],
     'sentadilla-isometrica-pared': [2, 'sentadilla', null],
     'subida-escalon': [2, 'sentadilla', 'zancada-bulgara'],
-    'puente-talones-silla': [2, 'puente-gluteos', null],
+    'puente-talones-silla': [2, 'puente-gluteos', 'curl-nordico'],
     'hip-thrust-con-pesa': [2, 'puente-gluteos', null],
     'dead-bug': [1, null, 'plancha'],
     'bird-dog': [1, null, 'plancha-lateral'],
