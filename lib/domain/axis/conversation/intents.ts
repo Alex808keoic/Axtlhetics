@@ -17,6 +17,7 @@ import { DEFAULT_EQUIPMENT, EXERCISE_CATALOG, isAvailable } from '../../workouts
 import type { Equipment, Exercise } from '../../workouts/types'
 import { FOCUS_TERMS, type SessionFocus } from '../knowledge/focus'
 import { SPORT_TERMS } from '../knowledge/sports'
+import { sportProfileFor } from '../knowledge/sport-profiles'
 import type { AxisIntent } from './types'
 
 type IntentRule = {
@@ -462,6 +463,18 @@ export function matchIntent(
   const isFollowUp = FOLLOW_UP_MARKERS.some((marker) => text.startsWith(marker))
 
   if (text.length === 0) return { intent: 'unknown', focus, isFollowUp: false }
+
+  /*
+   * «¿Qué trabaja el baloncesto?» pregunta de qué va el deporte, no por el de
+   * hoy (D-093): con la forma de una pregunta de ejercicio y un deporte que AXIS
+   * conoce, se responde con su ficha. Va antes que las reglas, que lo tomarían
+   * por «¿tengo baloncesto hoy?».
+   */
+  const askedAbout = exerciseQuestionQuery(question)
+  if (askedAbout !== null && sportProfileFor(askedAbout)) {
+    const exercise = resolveExercise(question, EXERCISE_CATALOG, available)
+    if (exercise.kind === 'not_found') return { intent: 'exercise', focus, isFollowUp, exercise }
+  }
 
   for (const rule of RULES) {
     // Una parte del cuerpo dentro del nombre de un ejercicio no es una molestia.

@@ -8,6 +8,8 @@ import { useEcosystem } from '@/lib/ecosystem/use-ecosystem'
 import { useBackLayer } from '@/lib/navigation/use-back'
 import { RestoreFromBackup } from '@/components/profile/backup-controls'
 import { EquipmentPicker } from '@/components/profile/equipment-picker'
+import { SportInsight } from '@/components/profile/sport-insight'
+import { sportProfileFor } from '@/lib/domain/axis/knowledge/sport-profiles'
 import { SexPicker } from '@/components/profile/about-you'
 import { BackgroundPicker, HealthNote } from '@/components/profile/screening'
 import { BaselinePicker, startingTape } from '@/components/profile/baseline'
@@ -814,6 +816,7 @@ function IntensityPicker({
   onSelect: (intensity: ActivityIntensity) => void
   onToggleLegs: () => void
 }) {
+  const known = sportProfileFor(sport.name)
   return (
     <div>
       <ul className="space-y-2.5">
@@ -847,6 +850,12 @@ function IntensityPicker({
         })}
       </ul>
 
+      {/* Un deporte que AXIS conoce no necesita la pregunta: ya sabe qué carga (D-093). */}
+      {known ? (
+        <div className="mt-6">
+          <SportInsight sport={known} name={sport.name} />
+        </div>
+      ) : (
       <div className="mt-6">
         <FieldLabel>¿Carga mucho las piernas?</FieldLabel>
         <button
@@ -866,6 +875,7 @@ function IntensityPicker({
           Si lo marcas, AXIS evitará encadenar una sesión de piernas exigente el mismo día.
         </p>
       </div>
+      )}
     </div>
   )
 }

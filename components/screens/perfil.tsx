@@ -45,7 +45,10 @@ import {
   type DayKey,
   type Weekday,
 } from '@/lib/domain/shared/dates'
-import { MUSCLE_GROUP_LABELS } from '@/lib/domain/workouts/types'
+import { MUSCLE_GROUP_LABELS, type MuscleGroup } from '@/lib/domain/workouts/types'
+import { TRACKED_GROUPS } from '@/lib/domain/workouts/weekly-volume'
+import { describeSportMuscles, sportProfileFor } from '@/lib/domain/axis/knowledge/sport-profiles'
+import { SportInsight } from '@/components/profile/sport-insight'
 import { equipmentOf, NO_EQUIPMENT } from '@/lib/domain/workouts/equipment'
 import { useAxtlhetics } from '@/lib/state/store'
 
@@ -82,6 +85,12 @@ const INTENSITY_OPTIONS = Object.entries(ACTIVITY_INTENSITY_LABELS).map(([value,
   value: value as ActivityIntensity,
   label,
 }))
+
+/** Los grupos que se pueden marcar en una actividad (D-093). */
+const MUSCLE_OPTIONS = TRACKED_GROUPS.map((value) => ({ value, label: MUSCLE_GROUP_LABELS[value] }))
+
+/** Lo que se propone para una actividad que AXIS no conoce: lo de antes, piernas. */
+const UNKNOWN_SPORT_MUSCLES: MuscleGroup[] = ['piernas', 'gluteos']
 
 /** Los objetivos cuyas sesiones van solo con compuestos, salvo que se pidan brazos y hombros (D-092). */
 const STRENGTH_ACCESSORY_GOALS: readonly TrainingGoal[] = ['fuerza', 'rendimiento_deportivo']
@@ -360,6 +369,12 @@ export function PerfilScreen({
                   : ''}
                 {` · ${ACTIVITY_INTENSITY_LABELS[activity.intensity]}`}
               </span>
+              {/* Lo que AXIS tiene en cuenta de ella (D-093). */}
+              {activity.loadsMuscleGroups.length > 0 && (
+                <span className="block text-caption text-muted-foreground">
+                  Carga {describeSportMuscles(activity.loadsMuscleGroups)}
+                </span>
+              )}
               {/* Un partido cambia de día sin borrarlo ni volver a crearlo. */}
               {isDatedActivity(activity) && (
                 <select
@@ -526,6 +541,7 @@ function ActivityForm({
     endMinute: number | null
     intensity: ActivityIntensity
     loadsMuscleGroups: string[]
+    sportId?: string
   }) => Promise<void>
 }) {
   const [open, setOpen] = useState(false)
@@ -537,8 +553,17 @@ function ActivityForm({
   const [startHour, setStartHour] = useState(20)
   const [durationHours, setDurationHours] = useState(2)
   const [intensity, setIntensity] = useState<ActivityIntensity>('alta')
-  const [loadsLegs, setLoadsLegs] = useState(true)
+  // Los músculos los propone lo que AXIS sabe del deporte (D-093) hasta que el usuario los toque.
+  const [muscles, setMuscles] = useState<MuscleGroup[]>(UNKNOWN_SPORT_MUSCLES)
+  const [musclesTouched, setMusclesTouched] = useState(false)
   const [saving, setSaving] = useState(false)
+  const sport = sportProfileFor(name)
+  const shownMuscles: MuscleGroup[] = musclesTouched ? muscles : sport ? [...sport.muscleGroups] : UNKNOWN_SPORT_MUSCLES
+
+  const toggleMuscle = (group: MuscleGroup) => {
+    setMusclesTouched(true)
+    setMuscles(shownMuscles.includes(group) ? shownMuscles.filter((item) => item !== group) : [...shownMuscles, group])
+  }
 
   const canSave =
     name.trim().length > 0 && (recurrence === 'dated' || weekdays.length > 0)
@@ -552,7 +577,8 @@ function ActivityForm({
     setStartHour(20)
     setDurationHours(2)
     setIntensity('alta')
-    setLoadsLegs(true)
+    setMuscles(UNKNOWN_SPORT_MUSCLES)
+    setMusclesTouched(false)
     setOpen(false)
   }
 
@@ -575,7 +601,9 @@ function ActivityForm({
         ? minutesFromMidnight(Math.min(startHour + durationHours, 23), 0)
         : null,
       intensity,
-      loadsMuscleGroups: loadsLegs ? ['piernas', 'gluteos'] : [],
+      loadsMuscleGroups: [...shownMuscles],
+      // Reconocido: los músculos son los de la tarjeta o los que el usuario dejó, y no se tocan (D-093).
+      ...(sport ? { sportId: sport.id } : {}),
     }
 
     if (recurrence === 'dated') {
@@ -608,6 +636,7 @@ function ActivityForm({
   return (
     <div className="ax-enter mt-3 rounded-2xl bg-surface shadow-card p-4">
       <TextField label="Actividad" value={name} placeholder="Baloncesto" onChange={setName} />
+      <SportInsight sport={sport} name={name} />
 
       <ChoiceGroup
         label="Cuándo"
@@ -643,18 +672,13 @@ function ActivityForm({
         onChange={setIntensity}
       />
 
-      <button
-        type="button"
-        onClick={() => setLoadsLegs((current) => !current)}
-        aria-pressed={loadsLegs}
-        className={
-          loadsLegs
-            ? 'min-h-11 rounded-full border border-primary bg-primary px-4 text-subhead font-medium text-primary-foreground'
-            : 'min-h-11 rounded-full bg-background px-4 text-subhead font-medium text-muted-foreground'
-        }
-      >
-        Carga {MUSCLE_GROUP_LABELS.piernas.toLowerCase()}
-      </button>
+      <MultiChoiceGroup
+        label="Qué músculos carga"
+        hint={sport ? 'Los que sabe AXIS. Cámbialos si en tu caso es distinto.' : undefined}
+        options={MUSCLE_OPTIONS}
+        value={shownMuscles}
+        onToggle={toggleMuscle}
+      />
 
       {/*
         La hora, plegada. AXIS funciona sin ella: sin horario trata la actividad

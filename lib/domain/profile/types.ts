@@ -166,6 +166,11 @@ export type ScheduledActivity = {
    * evite proponer una sesión que solape con ella.
    */
   loadsMuscleGroups: string[]
+  /**
+   * El deporte que AXIS reconoció en el nombre (D-093), de `SPORT_PROFILES`.
+   * Ausente: no lo conoce, o la actividad es anterior y aún no se ha puesto al día.
+   */
+  sportId?: string
   createdAt: string
   updatedAt: string
 }
@@ -436,5 +441,6 @@ export function isScheduledActivity(value: unknown): value is ScheduledActivity 
   if (!isArrayOf(value.loadsMuscleGroups, (item): item is string => typeof item === 'string')) {
     return false
   }
+  if (value.sportId !== undefined && typeof value.sportId !== 'string') return false
   return isIsoDate(value.createdAt) && isIsoDate(value.updatedAt)
 }

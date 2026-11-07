@@ -7,7 +7,7 @@
 
 import { assessmentDayFacts } from './assessment'
 import { activityOccursOn, isAvailableOn } from '../profile/types'
-import { addDays, daysBetween, weekdayOfKey } from '../shared/dates'
+import { addDays, daysBetween, startOfWeek, weekdayOfKey, type DayKey } from '../shared/dates'
 import { computeRecoveryScore } from '../recovery/score'
 import { RECOVERY_BAND_THRESHOLDS } from '../recovery/weights'
 import type { MuscleGroup, SessionFocus } from '../workouts/types'
@@ -136,6 +136,8 @@ export function deriveFacts(context: AxisContext): AxisFacts {
     return score.status === 'ok' && score.value < RECOVERY_BAND_THRESHOLDS.good
   })
 
+  const sportSets = sportSetsThisWeek(activities, dayKey, cancelledYesterday)
+
   return {
     recoveryValue,
     recoveryKnown: recoveryValue !== null,
@@ -167,10 +169,14 @@ export function deriveFacts(context: AxisContext): AxisFacts {
         dayKey,
         context.catalog.length > 0 ? context.catalog : EXERCISE_CATALOG,
         profile?.experience ?? 'intermedio',
-      ).map((volume) => [
-        volume.group,
-        physique?.priorityGroups.includes(volume.group) ? fulfilmentOf(volume) / PRIORITY_VOLUME_FACTOR : fulfilmentOf(volume),
-      ]),
+      ).map((gym) => {
+        // Lo que ya trabajó su deporte esta semana cuenta como series (D-093).
+        const volume = { ...gym, sets: gym.sets + (sportSets[gym.group] ?? 0) }
+        return [
+          volume.group,
+          physique?.priorityGroups.includes(volume.group) ? fulfilmentOf(volume) / PRIORITY_VOLUME_FACTOR : fulfilmentOf(volume),
+        ]
+      }),
     ) as Record<MuscleGroup, number>,
     physique,
     trainingLoadBand: (() => {
@@ -178,6 +184,36 @@ export function deriveFacts(context: AxisContext): AxisFacts {
       return load.status === 'ok' ? load.band : null
     })(),
   }
+}
+
+/**
+ * Cuántas series equivale una sesión de deporte para cada grupo que carga
+ * (D-093), según su exigencia. Es una equivalencia prudente: el deporte cansa
+ * esos músculos, pero no los hace más fuertes como una serie cerca del fallo.
+ */
+export const SPORT_SETS_BY_INTENSITY: Record<string, number> = { baja: 1, media: 2, alta: 3 }
+
+/**
+ * Las series equivalentes que el deporte ha sumado a cada grupo esta semana
+ * (D-093): de lunes a ayer, sin lo que ayer no se jugó. Lo de hoy aún no ha
+ * pasado. Con esto AXIS reparte las sesiones hacia lo que el deporte no trabaja.
+ */
+export function sportSetsThisWeek(
+  activities: readonly ScheduledActivity[],
+  today: DayKey,
+  cancelledYesterday: ReadonlySet<string> = new Set(),
+): Partial<Record<MuscleGroup, number>> {
+  const sets: Partial<Record<MuscleGroup, number>> = {}
+  const yesterday = addDays(today, -1)
+  for (let day = startOfWeek(today); day < today; day = addDays(day, 1)) {
+    for (const activity of activities) {
+      if (!activityOccursOn(activity, day)) continue
+      if (day === yesterday && cancelledYesterday.has(activity.name.toLowerCase())) continue
+      const value = SPORT_SETS_BY_INTENSITY[activity.intensity] ?? 0
+      for (const group of activity.loadsMuscleGroups.filter(isMuscleGroup)) sets[group] = (sets[group] ?? 0) + value
+    }
+  }
+  return sets
 }
 
 /**

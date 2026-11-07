@@ -63,6 +63,7 @@ import {
   type UserProfileDraft,
 } from '../domain/profile/types'
 import { PRIMARY_PROFILE_ID } from '../domain/profile/types'
+import { withSportKnowledge } from '../domain/profile/sport-knowledge'
 import { createHealthNoteReader, type HealthReading } from '../domain/profile/health-note'
 import { computeRecoveryScore } from '../domain/recovery/score'
 import type { RecoveryInputs, RecoveryScore } from '../domain/recovery/types'
@@ -514,7 +515,12 @@ export function AxtlheticsProvider({ children }: { children: ReactNode }) {
 
         setToday(dayKey)
         setProfile(storedProfile)
-        setActivities(storedActivities)
+        // Las anteriores a D-093 se ponen al día con lo que AXIS sabe de su deporte, una sola vez.
+        const knownActivities = storedActivities.map(withSportKnowledge)
+        setActivities(knownActivities)
+        knownActivities.forEach((activity, index) => {
+          if (activity !== storedActivities[index]) void repositories.activities.save(activity).catch(() => {})
+        })
         setRecoveryInputs(storedRecovery ?? emptyRecoveryInputs(dayKey, nowIso()))
         setRecentRecovery(storedRecent.filter((inputs) => inputs.dayKey < dayKey))
         setMeasurements(storedMeasurements)
@@ -905,8 +911,9 @@ export function AxtlheticsProvider({ children }: { children: ReactNode }) {
   const addActivity = useCallback(async (draft: ActivityDraft) => {
     const timestamp = nowIso()
     // Sin cambios, solo alinea el día de la semana con la fecha si la tiene.
+    // Con lo que AXIS sabe de su deporte, si el formulario no lo trajo ya (D-093).
     const activity = withActivityChanges(
-      { ...draft, id: createId(), createdAt: timestamp, updatedAt: timestamp },
+      withSportKnowledge({ ...draft, id: createId(), createdAt: timestamp, updatedAt: timestamp }),
       {},
       timestamp,
     )
@@ -1336,7 +1343,9 @@ export function AxtlheticsProvider({ children }: { children: ReactNode }) {
   const actionPort = useMemo<AxisMemoryPort>(
     () => ({
       save: (next) => getRepositories().axisMemory.save(next),
-      async addActivity(activity) {
+      async addActivity(added) {
+        // Lo que registra AXIS desde la conversación, también con su deporte (D-093).
+        const activity = withSportKnowledge(added)
         await getRepositories().activities.save(activity)
         setActivities((current) =>
           sortActivities([...current.filter((item) => item.id !== activity.id), activity]),

@@ -2763,6 +2763,34 @@ Lógica, datos, textos, navegación, funciones y las figuras de ejercicios. Solo
 
 ---
 
+## D-093 — Los deportes que conoce AXIS
+
+**Fecha:** 2026-11-07 · **Estado:** aprobada e implementada · Pedido por Alex («que sepa de qué va ese deporte, qué músculos se entrena, y que tenga en cuenta la intensidad»). **Amplía** D-018, D-033 y D-089; **cambia** D-050 (lo que se evita antes de un deporte).
+
+### La ficha de cada deporte
+
+- **25 fichas** (`lib/domain/axis/knowledge/sport-profiles.ts`): baloncesto, fútbol, voleibol, balonmano, tenis, pádel, natación, waterpolo, correr, ciclismo, escalada, artes marciales de agarre, deportes de golpeo, artes marciales de patada, rugby, remo, gimnasia, baile, yoga o pilates, senderismo, esquí, surf, patinaje, CrossFit y golf. Cada una dice qué grupos carga, si tiene saltos o cambios de dirección, de qué va, qué conviene trabajar en casa y qué movilidad prepara para él.
+- **Se reconoce como lo escribe la gente**, sin tildes y por principio de palabra: «básquet», «Fútbol sala», «Partido de baloncesto», «Salir a correr».
+- **Son datos y nunca diagnostican**: añadir un deporte es añadir una ficha.
+
+### Al apuntar un deporte
+
+- **En Perfil, al escribir el nombre aparece lo que sabe AXIS** (de qué va, qué carga y qué te viene bien en casa), y **los músculos se proponen solos** con chips de los siete grupos, que el usuario puede cambiar. Sustituye al botón «Carga piernas». Si no lo conoce, lo dice y propone piernas y glúteos, como antes. La lista de actividades enseña qué carga cada una.
+- **En el onboarding**, un deporte conocido enseña su ficha en lugar de «¿Carga mucho las piernas?»; uno desconocido sigue con la pregunta.
+- **La actividad guarda qué deporte es** (`sportId`). Las anteriores a D-093 se ponen al día al abrir la app, una sola vez: suman los grupos de su deporte a los que tenían. Después, lo que deje el usuario manda. Lo que registra AXIS desde la conversación, igual.
+
+### Cómo lo usa AXIS
+
+- **Los saltos los dice la ficha** (D-033): pliometría y equilibrio para quien hace un deporte de salto. La lista de siempre sigue para lo que no conoce.
+- **El calentamiento lleva una movilidad del deporte principal** (el más exigente y, a igualdad, el que más días ocupa), después de los correctivos del escaneo.
+- **El deporte de la semana cuenta como series** de los grupos que carga (`sportSetsThisWeek`): baja 1, media 2, alta 3 por sesión, de lunes a ayer y sin lo que no se jugó. Así el reparto de la semana se va hacia lo que el deporte no trabaja. No cambia las series por semana que enseña «Tu progreso».
+- **Antes de un deporte de exigencia media, tampoco se cargan sus músculos** (antes solo con alta). El día fuerte y la sesión ligera siguen pidiendo uno de exigencia alta.
+- **AXIS dice qué carga**: «Hoy tienes baloncesto, que carga piernas, glúteos y core.»; «Mañana tienes fútbol, así que hoy conviene no vaciarse ni cargar piernas, glúteos y core.»
+- **Se le puede preguntar** «¿Qué trabaja el baloncesto?» y responde con la ficha.
+- **La Carga de 7 días sigue leyendo solo los entrenamientos.** Sumar el deporte con los umbrales de hoy dejaría a quien entrena y juega varias veces por semana siempre en «carga alta» y, con ello, en sesiones ligeras. Queda pendiente calibrarlo con datos reales.
+
+---
+
 ## Decisiones pendientes
 
 Nada de lo que sigue debe inventarse ni resolverse sin aprobación explícita de Alex.

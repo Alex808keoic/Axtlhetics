@@ -12,6 +12,7 @@ import { gearToday } from './context'
 import { deloadReason, describeDeloadReason, isDeloadWeek, type DeloadReason } from '../workouts/deload'
 import { blockAnchors } from '../workouts/blocks'
 import { JUMP_SPORT_TERMS } from './knowledge/sports'
+import { sportProfileFor } from './knowledge/sport-profiles'
 import { planSummary, type PhysiquePlan } from '../scanner/physique'
 import { isOpenTarget, targetProgress } from '../workouts/targets'
 import { frequentlySkipped } from '../workouts/history'
@@ -360,6 +361,8 @@ function planSession(
     anchorExerciseIds: blockAnchors(context.recentSessions, context.dayKey, focus, catalog),
     // Lo que el escaneo pide (D-041).
     warmupExtras: facts.physique?.warmupExtras ?? [],
+    // Lo que prepara para su deporte (D-093).
+    sportWarmup: sportWarmupFor(context.activities),
     preferUnilateral: facts.physique?.unilateral ?? false,
     // Lo que el usuario cuida y su sexo (D-051).
     careZones: context.profile?.careZones ?? [],
@@ -382,9 +385,33 @@ function planSession(
  */
 export function practicesJumpSport(activities: readonly { name: string }[]): boolean {
   return activities.some((activity) => {
+    // Lo que AXIS sabe del deporte manda (D-093); la lista de siempre, para lo que no conoce.
+    const known = sportProfileFor(activity.name)
+    if (known) return known.jumps
     const name = activity.name.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '')
     return JUMP_SPORT_TERMS.some((term) => name.includes(term))
   })
+}
+
+const SPORT_INTENSITY_RANK: Record<string, number> = { baja: 0, media: 1, alta: 2 }
+
+/**
+ * La movilidad que prepara para el deporte principal (D-093): el más exigente
+ * de los que conoce AXIS y, a igualdad, el que más días ocupa. Una sola, para no
+ * alargar el calentamiento.
+ */
+export function sportWarmupFor(activities: readonly { name: string; intensity: string }[]): string[] {
+  const byId = new Map<string, { warmup: readonly string[]; rank: number; days: number }>()
+  for (const activity of activities) {
+    const sport = sportProfileFor(activity.name)
+    if (!sport || sport.warmup.length === 0) continue
+    const current = byId.get(sport.id) ?? { warmup: sport.warmup, rank: 0, days: 0 }
+    current.rank = Math.max(current.rank, SPORT_INTENSITY_RANK[activity.intensity] ?? 0)
+    current.days += 1
+    byId.set(sport.id, current)
+  }
+  const main = [...byId.values()].sort((a, b) => b.rank - a.rank || b.days - a.days)[0]
+  return main ? [main.warmup[0]] : []
 }
 
 /**

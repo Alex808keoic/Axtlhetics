@@ -306,6 +306,8 @@ export type SessionBuildOptions = {
   exerciseLevels?: Readonly<Record<string, string>>
   /** Correctivos del escaneo (D-041): se añaden al calentamiento de las sesiones de fuerza, como mucho dos. */
   warmupExtras?: readonly string[]
+  /** La movilidad que prepara para su deporte (D-093): una, después de los correctivos. */
+  sportWarmup?: readonly string[]
   /** Con diferencia entre lados, al menos un ejercicio a una mano o una pierna (D-041). */
   preferUnilateral?: boolean
   /** Zonas a cuidar (D-051): nada que las cargue entra en la sesión. */
@@ -1221,6 +1223,7 @@ export function buildSession(options: SessionBuildOptions): PlannedSession {
     dislikedExerciseIds = [],
     exerciseLevels = {},
     warmupExtras = [],
+    sportWarmup = [],
     preferUnilateral = false,
     careZones = [],
     sex = null,
@@ -1256,7 +1259,7 @@ export function buildSession(options: SessionBuildOptions): PlannedSession {
   const warmsUp = warmsUpFor(focus)
   // Lo que sí se prescribe: el equilibrio de quien salta (D-033) y los correctivos del escaneo (D-041).
   const targetedIds = warmsUp
-    ? [...new Set([...(jumpSport ? [JUMP_SPORT_WARMUP] : []), ...warmupExtras.slice(0, MAX_WARMUP_EXTRAS)])].filter((id) =>
+    ? [...new Set([...(jumpSport ? [JUMP_SPORT_WARMUP] : []), ...warmupExtras.slice(0, MAX_WARMUP_EXTRAS), ...sportWarmup.slice(0, 1)])].filter((id) =>
         cares({ id }),
       )
     : []

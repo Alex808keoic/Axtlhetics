@@ -22,6 +22,7 @@ import { listNames } from '../../shared/text'
 import { TRAINING_LOAD_BAND_LABELS } from '../../workouts/load'
 import { describeFocus, type SessionFocus } from '../knowledge/focus'
 import { muscleGroupLabel } from '../knowledge/muscles'
+import { describeSportMuscles, sportProfileFor, type SportProfile } from '../knowledge/sport-profiles'
 import type { AxisBriefing, BriefingActivity } from '../briefing'
 import {
   asksForMoreTime,
@@ -945,9 +946,11 @@ function answerExercise(briefing: AxisBriefing, resolution: ExerciseResolution):
     return unknown('unknown', `¿Te refieres a ${names.slice(0, -1).join(', a ')} o a ${names[names.length - 1]}?`)
   }
   if (resolution.kind === 'not_found') {
-    return resolution.query === null
-      ? answerUnknown()
-      : unknown('unknown', 'No tengo ese ejercicio en tu catálogo.')
+    if (resolution.query === null) return answerUnknown()
+    // «¿Qué trabaja el baloncesto?»: no es un ejercicio, es un deporte que AXIS conoce (D-093).
+    const sport = sportProfileFor(resolution.query)
+    if (sport) return answerSport(sport)
+    return unknown('unknown', 'No tengo ese ejercicio en tu catálogo.')
   }
 
   const exercise = resolution.exercise
@@ -962,6 +965,16 @@ function answerExercise(briefing: AxisBriefing, resolution: ExerciseResolution):
   if (inSession) parts.push('Hoy está en tu sesión.')
 
   return say('exercise', parts)
+}
+
+/** Lo que AXIS sabe de un deporte (D-093): de qué va, qué carga y qué conviene en casa. */
+function answerSport(sport: SportProfile): AxisAnswer {
+  const name = sport.name.charAt(0).toUpperCase() + sport.name.slice(1)
+  return say('exercise', [
+    `${name}: ${sport.summary}`,
+    `Carga sobre todo ${describeSportMuscles(sport.muscleGroups)}. En casa te viene bien: ${sport.gymFocus}.`,
+    'Si lo tienes en tu perfil, lo tengo en cuenta: no cargo esos músculos el día antes ni el de después, y cuento lo que ya trabaja en tu semana.',
+  ])
 }
 
 function answerUnknown(): AxisAnswer {

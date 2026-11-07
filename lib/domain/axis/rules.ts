@@ -14,6 +14,7 @@ import type { MuscleGroup, SessionFocus, SessionIntensity } from '../workouts/ty
 import { MIN_SESSION_MINUTES } from './facts'
 import { describeFocus, FOCUS_MUSCLE_GROUPS } from './knowledge/focus'
 import { isMuscleGroup } from './knowledge/muscles'
+import { describeSportMuscles } from './knowledge/sport-profiles'
 import type { AxisFacts, AxisFactor, AxisRecommendationType } from './types'
 
 /** Nivel de fatiga a partir del cual AXIS deja de proponer una sesión normal. */
@@ -144,12 +145,21 @@ export function describeActivity(activity: {
   name: string
   startMinute: number | null
   endMinute: number | null
+  loadsMuscleGroups?: readonly string[]
 }): string {
   const name = activity.name.toLowerCase()
+  // Qué carga, si se sabe (D-093): «Hoy tienes baloncesto, que carga piernas, glúteos y core.»
+  const loads = loadsNote(activity, ', que carga ')
   if (activity.startMinute === null || activity.endMinute === null) {
-    return `Hoy tienes ${name}.`
+    return `Hoy tienes ${name}${loads}.`
   }
-  return `Hoy tienes ${name} de ${formatMinutesOfDay(activity.startMinute)} a ${formatMinutesOfDay(activity.endMinute)}.`
+  return `Hoy tienes ${name} de ${formatMinutesOfDay(activity.startMinute)} a ${formatMinutesOfDay(activity.endMinute)}${loads}.`
+}
+
+/** `${prefix}piernas, glúteos y core`, o nada si no carga ningún grupo conocido (D-093). */
+function loadsNote(activity: { loadsMuscleGroups?: readonly string[] }, prefix: string): string {
+  const groups = (activity.loadsMuscleGroups ?? []).filter(isMuscleGroup)
+  return groups.length > 0 ? `${prefix}${describeSportMuscles(groups)}` : ''
 }
 
 const demandingActivityToday: Rule = {
@@ -207,7 +217,7 @@ const demandingActivityTomorrow: Rule = {
         {
           key: 'activity_tomorrow',
           label: activity.name,
-          detail: `Mañana tienes ${activity.name.toLowerCase()}, así que hoy conviene no vaciarse.`,
+          detail: `Mañana tienes ${activity.name.toLowerCase()}, así que hoy conviene no vaciarse${loadsNote(activity, ' ni cargar ')}.`,
           direction: 'limits',
         },
       ],
@@ -552,8 +562,8 @@ export function muscleGroupsToAvoid(facts: AxisFacts): MuscleGroup[] {
   if (!finished) {
     for (const activity of facts.todayActivities) if (activity.intensity !== 'baja') add(activity)
   }
-  // Las de mañana, solo si son exigentes.
-  for (const activity of facts.tomorrowActivities) if (activity.intensity === 'alta') add(activity)
+  // Las de mañana que carguen de verdad (D-093): antes de un entreno medio tampoco se cargan esos músculos.
+  for (const activity of facts.tomorrowActivities) if (activity.intensity !== 'baja') add(activity)
   return [...groups]
 }
 

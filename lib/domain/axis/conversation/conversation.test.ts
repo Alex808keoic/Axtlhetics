@@ -1076,3 +1076,12 @@ test('D-037: AXIS apunta lo que no gusta, sin cambiar la sesión de hoy, y lo m�
   assert.equal(medical.intent, 'medical')
   assert.equal(medical.discomfort, 'rodilla')
 })
+
+test('D-093: AXIS sabe de qué va un deporte cuando se le pregunta', () => {
+  const { briefing } = briefingWith()
+  for (const question of ['¿Qué músculos trabaja el baloncesto?', '¿Qué trabaja la natación?']) {
+    const answer = answerFromBriefing(question, briefing)
+    assert.equal(answer.unknown, false, question)
+    assert.match(answer.text, /Carga sobre todo/, question)
+  }
+})
