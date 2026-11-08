@@ -228,7 +228,7 @@ test('D-096: la complexión y la edad llegan al motor y se explican', () => {
     now: new Date(2026, 10, 3, 10, 0),
   })
   const facts = deriveFacts(ctx)
-  assert.equal(facts.bodyBuild?.band, 'justo', 'IMC 15,6 a los 14: entre −2 y −1 DE')
+  assert.equal(facts.bodyBuild?.band, 'delgadez', 'IMC 15,6 a los 14 (174 meses): z −2,09 frente a la OMS')
   const { primary } = decide(ctx)
   const keys = primary.factors.map((factor) => factor.key)
   assert.ok(keys.includes('body_build'), keys.join(', '))

@@ -6,19 +6,22 @@
  * solo sirve para no proponer comer menos a quien va justo, cuidar las
  * articulaciones de quien pesa bastante más y explicar por qué.
  *
- * - **De 5 a 19 años**, el IMC se compara con la referencia de la OMS de 2007
- *   para su edad y sexo (`WHO_BMI_FOR_AGE`: −2 DE, −1 DE, mediana, +1 DE y
- *   +2 DE por año cumplido, redondeadas a una décima). Por debajo de −2 DE es
- *   **delgadez**; entre −2 y −1 DE, **justo de peso**; por encima de +1 DE,
- *   **sobrepeso**, y de +2 DE, **obesidad**. Sin sexo, la media de las dos tablas.
+ * - **De 5 a 19 años**, la puntuación z del IMC frente a la referencia oficial
+ *   de la OMS de 2007 para su edad en meses y su sexo (`WHO_BMI_LMS`, método
+ *   LMS). El perfil guarda años cumplidos, así que se toma la mitad del año
+ *   (años × 12 + 6). Por debajo de −2 es **delgadez**; de −2 a −1, **justo de
+ *   peso**; por encima de +1, **sobrepeso**, y de +2, **obesidad** (los cortes
+ *   de la OMS). Sin sexo, la media de las dos puntuaciones.
  * - **Desde los 20**, los cortes de adulto: 18,5, 25 y 30. Por debajo de 17 es
  *   delgadez; de 17 a 18,5, justo de peso.
  * - Por debajo de 5 años o sin datos, no se dice nada.
  */
 
+import { WHO_BMI_LMS, WHO_FIRST_MONTH, WHO_LAST_MONTH, type Lms } from './who-bmi-for-age'
+
 /** Mayoría de edad: lo que cambia para un menor (alimentación, carga). */
 export const ADULT_AGE = 18
-/** Por debajo de esta edad, sin trabajo de repeticiones bajas ni días fuertes. */
+/** Por debajo de esta edad, sin trabajo de repeticiones bajas con carga. */
 export const YOUTH_AGE = 16
 
 export type BodyBuildBand = 'delgadez' | 'justo' | 'normal' | 'sobrepeso' | 'obesidad'
@@ -26,75 +29,50 @@ export type BodyBuildBand = 'delgadez' | 'justo' | 'normal' | 'sobrepeso' | 'obe
 export type BodyBuild = {
   bmi: number
   band: BodyBuildBand
-  /** Con qué se ha comparado: la tabla por edad de la OMS o los cortes de adulto. */
+  /** Con qué se ha comparado: la referencia por edad de la OMS o los cortes de adulto. */
   reference: 'oms_edad' | 'adulto'
-}
-
-/** [−2 DE, −1 DE, mediana, +1 DE, +2 DE] de IMC por edad (5–19 años), OMS 2007. */
-type Row = readonly [number, number, number, number, number]
-
-export const WHO_BMI_FOR_AGE: Record<'hombre' | 'mujer', Readonly<Record<number, Row>>> = {
-  hombre: {
-    5: [13.0, 14.1, 15.3, 16.6, 18.3],
-    6: [13.0, 14.1, 15.3, 16.8, 18.5],
-    7: [13.1, 14.2, 15.5, 17.0, 19.0],
-    8: [13.3, 14.4, 15.7, 17.4, 19.7],
-    9: [13.5, 14.6, 16.0, 17.9, 20.5],
-    10: [13.7, 14.9, 16.4, 18.5, 21.4],
-    11: [14.1, 15.3, 16.9, 19.2, 22.5],
-    12: [14.5, 15.8, 17.5, 19.9, 23.6],
-    13: [14.9, 16.4, 18.2, 20.8, 24.8],
-    14: [15.5, 17.0, 19.0, 21.8, 25.9],
-    15: [16.0, 17.6, 19.8, 22.7, 27.0],
-    16: [16.5, 18.2, 20.5, 23.5, 27.9],
-    17: [16.9, 18.8, 21.1, 24.3, 28.6],
-    18: [17.3, 19.2, 21.7, 24.9, 29.2],
-    19: [17.6, 19.6, 22.2, 25.4, 29.7],
-  },
-  mujer: {
-    5: [12.7, 13.9, 15.2, 16.9, 18.9],
-    6: [12.7, 13.9, 15.3, 17.0, 19.2],
-    7: [12.7, 13.9, 15.4, 17.3, 19.8],
-    8: [12.9, 14.1, 15.7, 17.7, 20.6],
-    9: [13.1, 14.4, 16.1, 18.3, 21.5],
-    10: [13.5, 14.8, 16.6, 19.0, 22.6],
-    11: [13.9, 15.3, 17.2, 19.9, 23.7],
-    12: [14.4, 16.0, 18.0, 20.8, 25.0],
-    13: [14.9, 16.6, 18.8, 21.8, 26.2],
-    14: [15.4, 17.2, 19.6, 22.7, 27.3],
-    15: [15.9, 17.8, 20.2, 23.5, 28.2],
-    16: [16.2, 18.2, 20.7, 24.1, 28.9],
-    17: [16.4, 18.5, 21.0, 24.5, 29.3],
-    18: [16.4, 18.6, 21.3, 24.8, 29.5],
-    19: [16.5, 18.7, 21.4, 25.0, 29.7],
-  },
+  /** Puntuación z frente a la OMS (dos decimales); `null` con los cortes de adulto. */
+  z: number | null
 }
 
 const MIN_TABLE_AGE = 5
 const MAX_TABLE_AGE = 19
 
-export function bodyMassIndex(weightKg: number, heightCm: number): number | null {
+function exactBmi(weightKg: number, heightCm: number): number | null {
   if (!(weightKg > 0) || !(heightCm > 0)) return null
   const meters = heightCm / 100
-  return Math.round((weightKg / (meters * meters)) * 10) / 10
+  return weightKg / (meters * meters)
 }
 
-function rowFor(age: number, sex: 'hombre' | 'mujer' | null): Row {
-  const year = Math.floor(age)
-  if (sex) return WHO_BMI_FOR_AGE[sex][year]
-  const men = WHO_BMI_FOR_AGE.hombre[year]
-  const women = WHO_BMI_FOR_AGE.mujer[year]
-  return men.map((value, index) => Math.round(((value + women[index]) / 2) * 10) / 10) as unknown as Row
+export function bodyMassIndex(weightKg: number, heightCm: number): number | null {
+  const bmi = exactBmi(weightKg, heightCm)
+  return bmi === null ? null : Math.round(bmi * 10) / 10
 }
 
-function bandFrom(bmi: number, [minus2, minus1, , plus1, plus2]: Row): BodyBuildBand {
-  if (bmi < minus2) return 'delgadez'
-  if (bmi < minus1) return 'justo'
-  if (bmi > plus2) return 'obesidad'
-  if (bmi > plus1) return 'sobrepeso'
+/** La edad en meses que se usa con la tabla: la mitad del año cumplido, dentro de la tabla. */
+export function referenceMonth(age: number): number {
+  return Math.min(WHO_LAST_MONTH, Math.max(WHO_FIRST_MONTH, Math.round(Math.floor(age) * 12 + 6)))
+}
+
+/** Puntuación z LMS: ((IMC / M)^L − 1) / (L · S). */
+export function lmsZ(bmi: number, [l, m, s]: Lms): number {
+  return l === 0 ? Math.log(bmi / m) / s : (Math.pow(bmi / m, l) - 1) / (l * s)
+}
+
+/** La puntuación z del IMC para la edad (en años) y el sexo. Sin sexo, la media de las dos. */
+export function bmiForAgeZ(bmi: number, age: number, sex: 'hombre' | 'mujer' | null): number {
+  const row = referenceMonth(age) - WHO_FIRST_MONTH
+  if (sex) return lmsZ(bmi, WHO_BMI_LMS[sex][row])
+  return (lmsZ(bmi, WHO_BMI_LMS.hombre[row]) + lmsZ(bmi, WHO_BMI_LMS.mujer[row])) / 2
+}
+
+function bandFromZ(z: number): BodyBuildBand {
+  if (z < -2) return 'delgadez'
+  if (z < -1) return 'justo'
+  if (z > 2) return 'obesidad'
+  if (z > 1) return 'sobrepeso'
   return 'normal'
 }
-
 
 export function bodyBuild(input: {
   age: number | null | undefined
@@ -104,14 +82,16 @@ export function bodyBuild(input: {
 }): BodyBuild | null {
   const { age } = input
   if (age === null || age === undefined || !Number.isFinite(age) || age < MIN_TABLE_AGE) return null
-  const bmi = bodyMassIndex(input.weightKg ?? 0, input.heightCm ?? 0)
-  if (bmi === null) return null
+  const exact = exactBmi(input.weightKg ?? 0, input.heightCm ?? 0)
+  if (exact === null) return null
+  const bmi = Math.round(exact * 10) / 10
   if (age <= MAX_TABLE_AGE) {
-    return { bmi, band: bandFrom(bmi, rowFor(age, input.sex ?? null)), reference: 'oms_edad' }
+    const z = bmiForAgeZ(exact, age, input.sex ?? null)
+    return { bmi, band: bandFromZ(z), reference: 'oms_edad', z: Math.round(z * 100) / 100 }
   }
   // Los cortes de adulto son «menor que 25», «menor que 30»: 25 ya es sobrepeso.
   const band: BodyBuildBand = bmi < 17 ? 'delgadez' : bmi < 18.5 ? 'justo' : bmi < 25 ? 'normal' : bmi < 30 ? 'sobrepeso' : 'obesidad'
-  return { bmi, band, reference: 'adulto' }
+  return { bmi, band, reference: 'adulto', z: null }
 }
 
 /** Va justo de peso o por debajo: nunca se le propone comer menos. */

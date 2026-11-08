@@ -2854,7 +2854,7 @@ Como siempre (D-030), el usuario puede pedir entrenar igual: el descanso trae se
 
 ### Edad, peso y altura
 
-- **Peso para la altura y la edad** (`lib/domain/body/build.ts`, `bodyBuild`): de 5 a 19 años, el IMC frente a la referencia de la OMS de 2007 por edad y sexo (`WHO_BMI_FOR_AGE`, por año cumplido; sin sexo, la media): por debajo de −2 DE **delgadez**, de −2 a −1 DE **justo de peso**, por encima de +1 DE **sobrepeso** y de +2 DE **obesidad**. Desde los 20, los cortes de adulto (17, 18,5, 25 y 30). Usa el último peso apuntado. **No es un diagnóstico ni habla de estética**; con 14 años, 40,5 kg y 161 cm sale «justo de peso».
+- **Peso para la altura y la edad** (`lib/domain/body/build.ts`, `bodyBuild`): de 5 a 19 años, la puntuación z del IMC frente a la **referencia oficial de la OMS de 2007** (parámetros LMS por mes de edad y sexo, `lib/domain/body/who-bmi-for-age.ts`, sin redondear; como el perfil guarda años cumplidos, se toma la mitad del año: años × 12 + 6; sin sexo, la media de las dos puntuaciones): por debajo de −2 **delgadez**, de −2 a −1 **justo de peso**, por encima de +1 **sobrepeso** y de +2 **obesidad**. *(Enmienda del mismo día, pedida por Alex: sustituye a una tabla aproximada por años.)* Desde los 20, los cortes de adulto (17, 18,5, 25 y 30). Usa el último peso apuntado. **No es un diagnóstico ni habla de estética**; con 14 años, 40,5 kg y 161 cm sale z −2,09: «bajo de peso».
 - **Quien va justo de peso o por debajo no recibe déficit**, tampoco un adulto: el mínimo es lo que gasta. En días de entreno, un factor `body_build`: «Para tu edad y altura vas justo de peso: come bien hoy, sobre todo antes de entrenar…».
 - **Con obesidad, sin el bloque de saltos** (D-033): menos impacto en las articulaciones.
 - **Menores de 16 años: nada a repeticiones bajas con carga**, ni en fuerza ni en rendimiento (`workGoalFor(…, youth)`): repeticiones medias y la fuerza por técnica y variantes. Un factor `youth` lo explica cuando el objetivo es de fuerza.
@@ -2867,7 +2867,6 @@ Como siempre (D-030), el usuario puede pedir entrenar igual: el descanso trae se
 
 ### Pendiente
 
-- Los valores de la tabla de la OMS van redondeados a una décima y por año; si se quiere más precisión, se pueden pasar a la tabla mensual LMS.
 - Un deporte de exigencia baja sigue sin contar como día doble; si en la práctica cansa, se cambia aquí.
 
 ---
