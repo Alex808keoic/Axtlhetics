@@ -50,6 +50,7 @@ import { projectWeek, type WeekDayView } from '../domain/axis/week-view'
 import { buildAxisContext, gearToday } from '../domain/axis/context'
 import { availableEquipment, equipmentOf, loadsFor } from '../domain/workouts/equipment'
 import { levelOptions } from '../domain/workouts/levels'
+import { SWAP_REASON_NOTES, SWAP_REASONS, swapOptions, type SwapReason } from '../domain/workouts/swap'
 import { suggestWorkFor } from '../domain/axis/session-builder'
 import { createDeterministicAxisEngine } from '../domain/axis/engine'
 import type { AxisDecision, AxisProposal } from '../domain/axis/types'
@@ -340,6 +341,10 @@ type AxtlheticsStore = {
   levelOptions: Exercise[]
   /** Cambia el ejercicio en curso a otra variante de su familia y recuerda el nivel (D-065). */
   changeExerciseLevel(exerciseId: string): Promise<void>
+  /** Las alternativas al ejercicio en curso para cada motivo (D-095); `null` si ya no se puede cambiar. */
+  swapOptions: Record<SwapReason, Exercise[]> | null
+  /** Cambia el ejercicio en curso por una alternativa, con su motivo (D-095). */
+  swapExercise(exerciseId: string, reason: SwapReason): Promise<void>
   /** Termina el descanso ahora (D-019). */
   skipRest(): void
   /** Añade 15 s al descanso en curso (D-019). */
@@ -1130,11 +1135,29 @@ export function AxtlheticsProvider({ children }: { children: ReactNode }) {
    * Cambia el nivel del ejercicio en curso (D-065): la variante nueva con el
    * trabajo que AXIS le pondría hoy, y el nivel queda guardado para su familia.
    */
-  const changeExerciseLevel = useCallback(
-    async (exerciseId: string) => {
+  const currentSwapOptions = useMemo(() => {
+    const entry = activeWorkout ? activeWorkout.entries[activeWorkout.exerciseIndex] : undefined
+    const exercise = entry ? findExercise(entry.exerciseId) : null
+    if (!activeWorkout || !exercise || !canChangeLevel(activeWorkout)) return null
+    const filter = {
+      equipment: availableEquipment(gearNow),
+      careZones: profile?.careZones ?? [],
+      inSession: activeWorkout.entries.map((item) => item.exerciseId),
+      disliked: profile?.dislikedExercises ?? [],
+    }
+    return Object.fromEntries(
+      SWAP_REASONS.map(({ id }) => [id, swapOptions(exercise, id, filter)]),
+    ) as Record<SwapReason, Exercise[]>
+  }, [activeWorkout, gearNow, profile?.careZones, profile?.dislikedExercises])
+
+  /**
+   * Pone otro ejercicio en el hueco del actual, con el trabajo que AXIS le
+   * pondría hoy (D-065, D-095).
+   */
+  const replaceCurrentExercise = useCallback(
+    (exercise: Exercise, note?: string): boolean => {
       const current = workoutRef.current
-      const exercise = findExercise(exerciseId)
-      if (!current || !exercise || !profile || !canChangeLevel(current)) return
+      if (!current || !profile || !canChangeLevel(current)) return false
       const work = suggestWorkFor(exercise, {
         intensity: current.plan.intensity,
         goal: current.plan.goal,
@@ -1145,8 +1168,50 @@ export function AxtlheticsProvider({ children }: { children: ReactNode }) {
         sex: profile.sex ?? null,
       })
       replaceActiveWorkout(
-        changeExerciseIn(current, { exercise, sets: work.sets, reps: work.reps, weightKg: work.weightKg, loads: loadsFor(exercise, gearNow) }),
+        changeExerciseIn(current, {
+          exercise,
+          sets: work.sets,
+          reps: work.reps,
+          weightKg: work.weightKg,
+          loads: loadsFor(exercise, gearNow),
+          ...(note ? { note } : {}),
+        }),
       )
+      return true
+    },
+    [profile, sessions, gearNow, replaceActiveWorkout],
+  )
+
+  /**
+   * Cambia el ejercicio en curso con un motivo (D-095). Si «no me gusta», queda
+   * apuntado (D-037); si la alternativa es de su familia, se recuerda el nivel
+   * como en D-065.
+   */
+  const swapExercise = useCallback(
+    async (exerciseId: string, reason: SwapReason) => {
+      const current = workoutRef.current
+      const exercise = findExercise(exerciseId)
+      const previousId = current ? current.entries[current.exerciseIndex]?.exerciseId : undefined
+      const previous = previousId ? findExercise(previousId) : null
+      if (!exercise || !replaceCurrentExercise(exercise, SWAP_REASON_NOTES[reason])) return
+
+      const family = exercise.family
+      const sameFamily = family !== undefined && previous?.family === family
+      const remembersLevel = sameFamily && (reason === 'muy_dificil' || reason === 'muy_facil')
+      if (reason !== 'no_me_gusta' && !remembersLevel) return
+      await updateProfile((stored) => {
+        if (remembersLevel) return { ...stored, exerciseLevels: { ...(stored.exerciseLevels ?? {}), [family]: exercise.id } }
+        const list = (stored.dislikedExercises ?? []).filter((id) => id !== previousId)
+        return { ...stored, dislikedExercises: previousId ? [...list, previousId] : list }
+      }, 'No se pudo guardar el cambio en este dispositivo.')
+    },
+    [replaceCurrentExercise, updateProfile],
+  )
+
+  const changeExerciseLevel = useCallback(
+    async (exerciseId: string) => {
+      const exercise = findExercise(exerciseId)
+      if (!exercise || !replaceCurrentExercise(exercise)) return
       const family = exercise.family
       if (!family) return
       await updateProfile(
@@ -1154,7 +1219,7 @@ export function AxtlheticsProvider({ children }: { children: ReactNode }) {
         'No se pudo guardar el nivel en este dispositivo.',
       )
     },
-    [profile, sessions, gearNow, replaceActiveWorkout, updateProfile],
+    [replaceCurrentExercise, updateProfile],
   )
 
   const skipRest = useCallback(
@@ -1712,6 +1777,8 @@ export function AxtlheticsProvider({ children }: { children: ReactNode }) {
       skipExercise,
       levelOptions: currentLevelOptions,
       changeExerciseLevel,
+      swapOptions: currentSwapOptions,
+      swapExercise,
       skipRest,
       extendRest,
       setReserve,
@@ -1794,6 +1861,8 @@ export function AxtlheticsProvider({ children }: { children: ReactNode }) {
       undoLastSet,
       skipExercise,
       currentLevelOptions,
+      currentSwapOptions,
+      swapExercise,
       changeExerciseLevel,
       skipRest,
       extendRest,

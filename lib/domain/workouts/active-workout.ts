@@ -400,6 +400,8 @@ export function changeExercise(
     weightKg: number | null
     /** Los pesos del usuario para el ejercicio nuevo (D-055). */
     loads: number[]
+    /** El motivo del cambio, si lo dio (D-095): «sin material». */
+    note?: string
   },
 ): ActiveWorkout {
   const entry = currentEntry(workout)
@@ -425,7 +427,10 @@ export function changeExercise(
 
   return {
     ...updated,
-    modifications: [...workout.modifications, { kind: 'exercise_changed', detail: `${entry.name} → ${exercise.name}.` }],
+    modifications: [...workout.modifications, {
+        kind: 'exercise_changed',
+        detail: `${entry.name} → ${exercise.name}${replacement.note ? ` (${replacement.note})` : ''}.`,
+      }],
   }
 }
 

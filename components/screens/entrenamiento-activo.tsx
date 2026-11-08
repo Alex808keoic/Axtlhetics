@@ -2,7 +2,8 @@
 
 import { useEffect, useState } from 'react'
 import Image from 'next/image'
-import { ArrowLeft, Check, ChevronRight, Play, SkipForward, Undo2 } from 'lucide-react'
+import { ArrowLeft, ArrowLeftRight, Check, ChevronRight, Play, SkipForward, Undo2 } from 'lucide-react'
+import { ExerciseSwap } from '@/components/workout/exercise-swap'
 import { ExerciseFigure, hasExerciseFigure } from '@/components/exercise-figure'
 import { Confirmation } from '@/components/workout/confirmation'
 import { RestTimer } from '@/components/workout/rest-timer'
@@ -49,6 +50,8 @@ export function EntrenamientoActivo() {
     skipExercise,
     levelOptions,
     changeExerciseLevel,
+    swapOptions,
+    swapExercise,
     skipRest,
     extendRest,
     setReserve,
@@ -61,7 +64,7 @@ export function EntrenamientoActivo() {
 
   const [now, setNow] = useState(() => new Date())
   const [detailsOpen, setDetailsOpen] = useState(false)
-  const [confirming, setConfirming] = useState<'exit' | 'skip' | null>(null)
+  const [confirming, setConfirming] = useState<'exit' | 'skip' | 'swap' | null>(null)
 
   // «Atrás» hace lo mismo que la flecha: con series hechas pregunta, nunca cierra la sesión sin más (D-088).
   useBackLayer(activeWorkout !== null, () => {
@@ -155,6 +158,25 @@ export function EntrenamientoActivo() {
         leaveTone="error"
         onStay={() => setConfirming(null)}
         onLeave={() => void abandonWorkout()}
+      />
+    )
+  }
+
+  // Al empezar la primera serie ya no se puede cambiar: si quedó abierto, se cierra solo.
+  if (confirming === 'swap' && swapOptions) {
+    return (
+      <ExerciseSwap
+        exerciseName={entry.name}
+        options={swapOptions}
+        onSwap={(exerciseId, reason) => {
+          void swapExercise(exerciseId, reason)
+          setConfirming(null)
+        }}
+        onSkip={() => {
+          skipExercise()
+          setConfirming(null)
+        }}
+        onClose={() => setConfirming(null)}
       />
     )
   }
@@ -295,6 +317,18 @@ export function EntrenamientoActivo() {
             recommendedId={activeWorkout.plan.exercises[activeWorkout.exerciseIndex]?.exerciseId ?? null}
             onChange={(exerciseId) => void changeExerciseLevel(exerciseId)}
           />
+
+          {/* Cambiar el ejercicio, diciendo por qué (D-095). Como el nivel, antes de la primera serie. */}
+          {swapOptions && (
+            <button
+              type="button"
+              onClick={() => setConfirming('swap')}
+              className="ax-press mt-4 flex min-h-11 items-center gap-2 rounded-full bg-surface px-4 text-subhead font-medium text-foreground shadow-card"
+            >
+              <ArrowLeftRight className="h-4 w-4 text-primary" strokeWidth={2} />
+              Cambiar ejercicio
+            </button>
+          )}
 
           {/* Carga y repeticiones. Sin pesa no hay kilos que poner: solo repeticiones o segundos. */}
           <div className={cn('mt-6 grid gap-3', takesWeight(entry) ? 'grid-cols-2' : 'grid-cols-1')}>

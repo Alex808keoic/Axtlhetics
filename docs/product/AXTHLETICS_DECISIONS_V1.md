@@ -2818,6 +2818,20 @@ Lógica, datos, textos, navegación, funciones y las figuras de ejercicios. Solo
 
 ---
 
+## D-095 — Cambiar ejercicio, diciendo por qué
+
+**Fecha:** 2026-11-08 · **Estado:** aprobada e implementada · Pedido por Alex: «cuando estés haciendo un ejercicio, que salga la opción de cambiar ejercicio y, al clicarla, te pregunte el porqué con opciones: no tengo el material, no puedo hacerlo por molestias…». **Amplía** D-065 (el nivel) y D-022/D-037 (molestias y lo que no gusta).
+
+- **En el entreno en curso**, debajo de «Nivel», el botón **«Cambiar ejercicio»**. Como el nivel, solo **antes de la primera serie** y nunca en el calentamiento; con series hechas queda «Saltar» (D-019).
+- Al tocarlo, una pantalla pregunta **«¿Por qué quieres cambiarlo?»**: *No tengo el material*, *Me molesta o me duele*, *Es demasiado difícil*, *Es demasiado fácil*, *No me gusta* y *Otro motivo*. Después, hasta **seis alternativas** con su material, y se elige una (`lib/domain/workouts/swap.ts`, `components/workout/exercise-swap.tsx`).
+- **Las alternativas hacen el mismo trabajo**: el mismo patrón de movimiento (D-073); si el patrón no da más de sí, el hermano (sentadilla ↔ zancada, empuje horizontal ↔ vertical). Siempre con el material de hoy, sin cargar una zona a cuidar (D-051) y sin repetir un ejercicio que ya esté en la sesión. Los sustitutos de patrón van al final.
+- **Según el motivo:** sin material, nada que pida lo que pedía el ejercicio (si no pedía nada, solo con el cuerpo); por molestias, ninguna variante de su familia y solo lo que carga menos esas articulaciones o es más suave, con «si la molestia sigue, que la vea un profesional»; difícil o fácil, más o menos exigentes, primero las de su familia; no me gusta, fuera su familia.
+- **Lo que se recuerda:** «No me gusta» apunta el ejercicio en `dislikedExercises` (D-037). Un cambio de dificultad dentro de la familia guarda el nivel como en D-065. El resto vale solo para hoy.
+- La alternativa llega con el trabajo que AXIS le pondría hoy (`suggestWorkFor`) y la sesión guarda `exercise_changed` con el motivo: «Press de suelo con mancuernas → Flexiones (sin material).»
+- Si no hay ninguna alternativa (por ejemplo, molestias en la rodilla con solo sentadillas a mano), se dice y se ofrece **saltar el ejercicio**. Una molestia sigue sin cambiar nada por sí sola (D-022): aquí el cambio lo elige el usuario.
+
+---
+
 ## Decisiones pendientes
 
 Nada de lo que sigue debe inventarse ni resolverse sin aprobación explícita de Alex.
