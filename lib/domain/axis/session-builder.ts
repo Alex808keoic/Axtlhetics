@@ -120,6 +120,11 @@ export const GOAL_PARAMS: Record<TrainingGoal, GoalParams> = {
 /** Los objetivos de repeticiones bajas (D-047): fuerza y potencia. */
 const LOW_REP_GOALS: readonly TrainingGoal[] = ['fuerza', 'rendimiento_deportivo']
 
+/** `true` si el objetivo trabaja los compuestos con carga a repeticiones bajas (D-073). */
+export function isStrengthLowRepGoal(goal: TrainingGoal): boolean {
+  return LOW_REP_GOALS.includes(goal)
+}
+
 /**
  * Con menos de 2 × el peso de partida del catálogo, la pesa más pesada del
  * usuario no da para repeticiones bajas (D-073): 6 repeticiones con 5 kg no
@@ -165,10 +170,16 @@ export function lightLoadFor(exercise: Exercise, gear: UserEquipment = LEGACY_EQ
  * hipertrofia: un entrenador no manda 5 elevaciones laterales ni 6 sentadillas
  * con 5 kg. Los saltos y los intervalos no cambian.
  */
-export function workGoalFor(exercise: Exercise, goal: TrainingGoal, gear: UserEquipment = LEGACY_EQUIPMENT): TrainingGoal {
+export function workGoalFor(
+  exercise: Exercise,
+  goal: TrainingGoal,
+  gear: UserEquipment = LEGACY_EQUIPMENT,
+  /** Menor de 16 años (D-096): nada a repeticiones bajas; la fuerza llega por técnica y variantes. */
+  youth = false,
+): TrainingGoal {
   if (!LOW_REP_GOALS.includes(goal)) return goal
   if (exercise.category === 'pliometria' || exercise.category === 'acondicionamiento') return goal
-  return isIsolation(exercise) || lightLoadFor(exercise, gear) ? 'hipertrofia' : goal
+  return youth || isIsolation(exercise) || lightLoadFor(exercise, gear) ? 'hipertrofia' : goal
 }
 
 /** El objetivo de una sesión cuando solo se conocen los del perfil: uno solo, ese; si no, fuerza general. */
@@ -316,6 +327,12 @@ export type SessionBuildOptions = {
   strengthAccessories?: boolean
   /** Sexo (D-051): ajusta descansos y peso de partida del tren superior. */
   sex?: Sex | null
+  /** Menor de 16 años (D-096): nada a repeticiones bajas, la fuerza por técnica y variantes. */
+  youth?: boolean
+  /** Peso corporal muy por encima para su altura (D-096): sin el bloque de saltos. */
+  noJumps?: boolean
+  /** Ajuste del peso de partida por el peso corporal de un menor (D-096). */
+  bodyStartFactor?: number
 }
 
 // ---------------------------------------------------------------------------
@@ -695,10 +712,11 @@ export function hasMastered(
   history: readonly WorkoutSession[],
   gear: UserEquipment = LEGACY_EQUIPMENT,
   goal: TrainingGoal = DEFAULT_GOAL,
+  youth = false,
 ): boolean {
   const last = lastPerformanceOf(exercise.id, history)
   if (!last || !last.allSetsCompleted) return false
-  if (last.reps < repCapFor(exercise, workGoalFor(exercise, goal, gear))) return false
+  if (last.reps < repCapFor(exercise, workGoalFor(exercise, goal, gear, youth))) return false
   if (!usesLoad(exercise)) return true
   return nextLoad(loadsFor(exercise, gear), last.weightKg ?? 0) === null
 }
@@ -743,11 +761,15 @@ export function suggestWorkFor(
     deload?: boolean
     gear?: UserEquipment
     sex?: Sex | null
+    /** Menor de 16 años (D-096): sin repeticiones bajas. */
+    youth?: boolean
+    /** Ajuste del peso de partida por el peso corporal de un menor (D-096). */
+    bodyStartFactor?: number
   },
 ): SuggestedWork {
-  const { intensity, experience, history = [], deload = false, gear = LEGACY_EQUIPMENT, sex = null } = options
-  // Accesorios y pesas cortas no van a repeticiones bajas (D-073).
-  const goal = workGoalFor(exercise, options.goal ?? sessionGoalFrom(options.goals ?? DEFAULT_GOALS), gear)
+  const { intensity, experience, history = [], deload = false, gear = LEGACY_EQUIPMENT, sex = null, youth = false, bodyStartFactor = 1 } = options
+  // Accesorios y pesas cortas no van a repeticiones bajas (D-073); un menor de 16, nada (D-096).
+  const goal = workGoalFor(exercise, options.goal ?? sessionGoalFrom(options.goals ?? DEFAULT_GOALS), gear, youth)
 
   const maxSets = MAX_SETS_BY_EXPERIENCE[experience] ?? MAX_SETS_BY_EXPERIENCE[DEFAULT_EXPERIENCE]
   // Los intervalos van por rondas: el objetivo no suma series.
@@ -761,7 +783,8 @@ export function suggestWorkFor(
   const loads = usesLoad(exercise) ? loadsFor(exercise, gear) : []
   const upperBody = exercise.category === 'empuje' || exercise.category === 'tiron'
   // Menos repeticiones, más peso de partida (D-073).
-  const startFactor = (sex === 'mujer' && upperBody ? FEMALE_UPPER_START_FACTOR : 1) * (LOW_REP_GOALS.includes(goal) ? LOW_REP_START_FACTOR : 1)
+  const startFactor =
+    (sex === 'mujer' && upperBody ? FEMALE_UPPER_START_FACTOR : 1) * (LOW_REP_GOALS.includes(goal) ? LOW_REP_START_FACTOR : 1) * bodyStartFactor
   const baseWeight = startingLoad(exercise, loads, experience, startFactor)
 
   const last = lastPerformanceOf(exercise.id, history)
@@ -887,6 +910,7 @@ export function adaptDifficulty(
     catalog?: readonly Exercise[]
     gear?: UserEquipment
     goal?: TrainingGoal
+    youth?: boolean
     /**
      * `light`: se baja a la variante accesible aunque se domine (D-008) y solo se
      * sube por debajo del objetivo. `deload`: se sigue en la variante que tocaba,
@@ -895,17 +919,17 @@ export function adaptDifficulty(
     mode?: 'normal' | 'light' | 'deload'
   } = {},
 ): Exercise {
-  const { history = [], catalog, gear = LEGACY_EQUIPMENT, goal = DEFAULT_GOAL, mode = 'normal' } = options
+  const { history = [], catalog, gear = LEGACY_EQUIPMENT, goal = DEFAULT_GOAL, mode = 'normal', youth = false } = options
   const equipment = availableEquipment(gear)
 
   if (exercise.difficulty > target) {
     const easier = variantOf(exercise, 'easier', catalog, equipment)
     // Lo que ya se dominó no se vuelve a hacer: de ahí se subió a esta (D-089).
-    if (mode === 'light' || easier === exercise || !hasMastered(easier, history, gear, goal)) return easier
+    if (mode === 'light' || easier === exercise || !hasMastered(easier, history, gear, goal, youth)) return easier
   }
   if (mode === 'deload') return exercise
   // Se sube de variante al dominarla, también por encima del nivel de partida (D-089).
-  if ((mode === 'normal' || exercise.difficulty < target) && hasMastered(exercise, history, gear, goal)) {
+  if ((mode === 'normal' || exercise.difficulty < target) && hasMastered(exercise, history, gear, goal, youth)) {
     return variantOf(exercise, 'harder', catalog, equipment)
   }
   return exercise
@@ -1228,6 +1252,9 @@ export function buildSession(options: SessionBuildOptions): PlannedSession {
     careZones = [],
     sex = null,
     strengthAccessories = false,
+    youth = false,
+    noJumps = false,
+    bodyStartFactor = 1,
   } = options
 
   const equipment = availableEquipment(gear)
@@ -1287,7 +1314,7 @@ export function buildSession(options: SessionBuildOptions): PlannedSession {
   const phaseMinutes = warmsUp ? estimateMinutes([...activation, ...mobility]) + approachMinutes : 0
   // Con un deporte de salto, o si la sesión es de rendimiento (D-047), un salto abre el entrenamiento y ocupa un hueco (D-033).
   const jump =
-    (jumpSport || goal === 'rendimiento_deportivo') && JUMP_FOCUSES.includes(focus) && intensity === 'moderada'
+    !noJumps && (jumpSport || goal === 'rendimiento_deportivo') && JUMP_FOCUSES.includes(focus) && intensity === 'moderada'
       ? jumpExerciseFor(phaseCatalog, equipment, target, usage, dislikedExerciseIds, careZones)
       : null
   /** La sesión con `count` ejercicios de entrenamiento (sin contar el salto). */
@@ -1298,7 +1325,7 @@ export function buildSession(options: SessionBuildOptions): PlannedSession {
     const chosen = chosenLevel(exercise, exerciseLevels, { catalog, equipment, careZones })
     if (chosen) {
       let level = chosen
-      while (!deload && hasMastered(level, history, gear, goal)) {
+      while (!deload && hasMastered(level, history, gear, goal, youth)) {
         const harder = variantOf(level, 'harder', catalog, equipment)
         if (harder === level || !cares(harder) || heavy(harder)) break
         level = harder
@@ -1310,6 +1337,7 @@ export function buildSession(options: SessionBuildOptions): PlannedSession {
       catalog,
       gear,
       goal,
+      youth,
       mode: deload ? 'deload' : intensity === 'ligera' ? 'light' : 'normal',
     })
     // Una variante que carga una zona a cuidar no sustituye a la que no la carga (D-051),
@@ -1320,7 +1348,7 @@ export function buildSession(options: SessionBuildOptions): PlannedSession {
   const exhausted = (exercise: Exercise): boolean => {
     if (deload) return false
     const variant = adapt(exercise)
-    return hasMastered(variant, history, gear, goal) && variantOf(variant, 'harder', catalog, equipment) === variant
+    return hasMastered(variant, history, gear, goal, youth) && variantOf(variant, 'harder', catalog, equipment) === variant
   }
   // Los principales del bloque que se pueden hacer hoy, en su variante del día (D-057).
   const anchors = anchorExerciseIds
@@ -1348,10 +1376,10 @@ export function buildSession(options: SessionBuildOptions): PlannedSession {
     const main = jump ? [jump, ...prioritized] : prioritized
 
     const exercises: PlannedExercise[] = main.map((exercise) => {
-      const work = suggestWorkFor(exercise, { intensity, goal, experience, history, deload, gear, sex })
+      const work = suggestWorkFor(exercise, { intensity, goal, experience, history, deload, gear, sex, youth, bodyStartFactor })
       // Descanso y cadencia del objetivo con que se trabaja este ejercicio (D-073): la
       // plancha no descansa 2 minutos y, con una pesa corta, la fuerza se busca bajando despacio.
-      const workGoal = workGoalFor(exercise, goal, gear)
+      const workGoal = workGoalFor(exercise, goal, gear, youth)
       const slow = workGoal !== goal && !isIsolation(exercise)
       return {
         exerciseId: exercise.id,

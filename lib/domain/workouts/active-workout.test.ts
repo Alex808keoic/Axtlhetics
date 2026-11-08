@@ -607,3 +607,15 @@ test('D-032: saltar el calentamiento no deja rastro ni acorta la sesión', async
   assert.equal(session.modifications.length, 0, `sin «sin completar» ni sesión acortada: ${JSON.stringify(session.modifications)}`)
   assert.ok(session.exercises.every((item) => item.phase === undefined), 'lo hecho es el entrenamiento')
 })
+
+test('D-096: solo calentamiento no es progreso de entrenamiento', async () => {
+  const { hasTrainingProgress, reconcileStoredWorkout: reconcile } = await import('./active-workout')
+  const warmup = { ...plan.exercises[1], exerciseId: 'jumping-jacks', name: 'Jumping jacks', phase: 'calentamiento' as const }
+  const withWarmup: AxisProposal = { ...proposal, session: { ...plan, exercises: [warmup, ...plan.exercises] } }
+  const started = startWorkout(withWarmup, START)!
+  const warmedUp = completeSet(started)
+  assert.equal(hasProgress(warmedUp), true)
+  assert.equal(hasTrainingProgress(warmedUp), false)
+  // Otro día, una sesión con solo el calentamiento se descarta, no pasa al historial.
+  assert.equal(reconcile(JSON.parse(JSON.stringify(warmedUp)), { today: '2026-09-09', savedAt: '2026-09-08T18:05:00.000Z' }).kind, 'discard')
+})

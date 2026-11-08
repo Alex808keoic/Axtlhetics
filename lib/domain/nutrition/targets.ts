@@ -18,6 +18,7 @@ import type { DayKey } from '../shared/dates'
 import { isDayKey, isFiniteNumber, isOneOf, isRecord } from '../shared/guards'
 import { startOfWeek } from '../shared/dates'
 import { weeklyWeightChange, type WeekWeight } from '../body/measurements'
+import { ADULT_AGE, bodyBuild, isLean } from '../body/build'
 
 export type NutritionGoal = 'perder_grasa' | 'mantener' | 'ganar_musculo'
 
@@ -38,7 +39,7 @@ export type NutritionPlan = {
   since: DayKey
 }
 
-export const ADULT_AGE = 18
+export { ADULT_AGE }
 export const NUTRITION_DISCLAIMER = 'Es una guía general: no sustituye a un profesional de la nutrición.'
 const PROTEIN_FOODS = 'huevos, carne, pescado, legumbres o lácteos'
 
@@ -105,6 +106,8 @@ export function nutritionTargets(input: {
 }): NutritionTargets {
   const { plan } = input
   const minor = input.age < ADULT_AGE
+  // Quien va justo de peso para su edad y altura no come menos de lo que gasta (D-096).
+  const lean = isLean(bodyBuild(input))
 
   const basal = basalKcal(input)
   const maintenance = basal * activityFactor(input.trainingDays)
@@ -116,7 +119,7 @@ export function nutritionTargets(input: {
         : 0
   // Nunca por debajo del gasto en reposo: comer menos que eso no es un déficit sensato.
   // Un menor está creciendo: nunca por debajo de lo que gasta (D-023, D-066).
-  const floor = minor ? maintenance : basal
+  const floor = minor || lean ? maintenance : basal
   const kcal = round50(Math.max(floor, maintenance + goalDelta + plan.adjustmentKcal))
   const [low, high] = PROTEIN_PER_KG[plan.goal]
   const proteinGrams = [round5(low * input.weightKg), round5(high * input.weightKg)] as const
@@ -127,7 +130,9 @@ export function nutritionTargets(input: {
     Math.max(0, round5((kcal - proteinGrams[0] * 4 - fatGrams[0] * 9) / 4)),
   ] as const
   const how: Record<NutritionGoal, string> = {
-    perder_grasa: minor
+    perder_grasa: lean && !minor
+      ? 'lo que gastas: para tu altura vas justo de peso, así que no toca comer menos. El cambio llega entrenando con constancia'
+      : minor
       ? `a tu edad no se come menos: es lo que gastas, y el cambio llega entrenando con constancia y durmiendo bien. Si te preocupa tu peso, háblalo con tu médico`
       : 'un déficit moderado: perder entre medio y un 1 % de tu peso a la semana, sin perder músculo',
     mantener: minor ? 'lo que gastas: suficiente para entrenar y crecer' : 'lo que gastas: mantener el peso mientras entrenas',

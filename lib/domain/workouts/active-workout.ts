@@ -679,6 +679,15 @@ export function hasProgress(workout: ActiveWorkout): boolean {
   return workout.entries.some((entry) => entry.sets.length > 0)
 }
 
+/**
+ * `true` si hay al menos una serie del entrenamiento, no del calentamiento
+ * (D-096). Es lo que decide si una sesión se guarda: calentar y cambiar de
+ * sesión no es haber entrenado, ni un entreno abandonado en el historial.
+ */
+export function hasTrainingProgress(workout: ActiveWorkout): boolean {
+  return workout.entries.some((entry) => isMainExercise(entry) && entry.sets.length > 0)
+}
+
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value)
 }
@@ -824,7 +833,7 @@ export function reconcileStoredWorkout(
 ): StoredWorkoutOutcome {
   if (!isActiveWorkout(stored)) return { kind: 'discard' }
   if (stored.dayKey === options.today) return { kind: 'resume', workout: stored }
-  if (!hasProgress(stored)) return { kind: 'discard' }
+  if (!hasTrainingProgress(stored)) return { kind: 'discard' }
 
   const savedAt = new Date(options.savedAt)
   const completedAt = Number.isNaN(savedAt.getTime()) ? new Date(stored.startedAt) : savedAt

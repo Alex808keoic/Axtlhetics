@@ -183,8 +183,8 @@ test('la semana va de lunes a domingo: hoy, lo previsto en los días disponibles
   assert.equal(week[0].dayKey, '2026-09-07')
   assert.equal(week[0].status, 'today')
   assert.equal(week[0].hard, true)
-  // Disponibles: lunes, miércoles, viernes y sábado.
-  assert.deepEqual(week.map((item) => item.status), ['today', 'rest', 'planned', 'rest', 'planned', 'planned', 'rest'])
+  // Disponibles: lunes, miércoles, viernes y sábado; con 15 años tocan 3 sesiones (D-096): el sábado descansa.
+  assert.deepEqual(week.map((item) => item.status), ['today', 'rest', 'planned', 'rest', 'planned', 'rest', 'rest'])
   // Lo previsto tiene título y nunca se da por fuerte.
   for (const item of week.filter((entry) => entry.status === 'planned')) {
     assert.ok(item.title)

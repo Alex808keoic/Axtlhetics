@@ -135,6 +135,121 @@ const notAvailableToday: Rule = {
   },
 }
 
+// ---------------------------------------------------------------------------
+// La semana como un todo (D-096): entrenos y deporte suman
+// ---------------------------------------------------------------------------
+
+/** Días seguidos de entreno o deporte a partir de los que hoy toca un día libre. */
+export const MAX_ACTIVE_STREAK = 6
+
+/**
+ * Seis días seguidos entre entrenos y deporte: hoy, día libre. El cuerpo
+ * mejora al recuperar, no al entrenar; sin un día libre a la semana, la fatiga
+ * se acumula. Si hoy hay deporte, se juega; lo que no se suma es otro entreno.
+ */
+const activeStreak: Rule = {
+  id: 'active_streak',
+  evaluate(facts) {
+    if (facts.activeStreak < MAX_ACTIVE_STREAK) return null
+    return {
+      type: 'REST',
+      rule: 'active_streak',
+      factors: [
+        {
+          key: 'active_streak',
+          label: 'Días seguidos',
+          detail: `Llevas ${facts.activeStreak} días seguidos entre entrenos y deporte: hoy toca un día libre para que el cuerpo asimile lo hecho.`,
+          direction: 'limits',
+        },
+      ],
+    }
+  },
+}
+
+/**
+ * Las sesiones de la semana ya están hechas: el resto es descanso. Cuántas
+ * tocan lo dicen la experiencia, la edad y el deporte (`weeklySessionCap`), no
+ * los días marcados, que dicen cuándo se puede.
+ */
+const weeklyCapReached: Rule = {
+  id: 'weekly_cap_reached',
+  evaluate(facts) {
+    if (facts.weeklySessionCap <= 0 || facts.sessionsThisWeek < facts.weeklySessionCap) return null
+    const done = facts.sessionsThisWeek
+    return {
+      type: 'REST',
+      rule: 'weekly_cap_reached',
+      factors: [
+        {
+          key: 'weekly_cap',
+          label: 'Semana hecha',
+          detail: `Esta semana ya llevas ${done} ${done === 1 ? 'entrenamiento' : 'entrenamientos'}, ${facts.weeklySessionCap === 1 ? 'el que te toca' : `los ${facts.weeklySessionCap} que te tocan`} con tu nivel, tu edad y tu deporte. El resto de la semana es para recuperar.`,
+          direction: 'limits',
+        },
+      ],
+    }
+  },
+}
+
+/**
+ * Hoy hay deporte de exigencia media o alta y quedan días libres para las sesiones pendientes: hoy no se
+ * suma otro entreno. Un día con deporte y entreno es un día doble; si caben en
+ * días sin deporte, mejor allí.
+ */
+const sportDayWithRoom: Rule = {
+  id: 'sport_day_with_room',
+  evaluate(facts) {
+    const activity = facts.todayActivity
+    // Un deporte suave no hace del día un día doble.
+    if (!activity || activity.intensity === 'baja') return null
+    const pending = facts.weeklySessionCap - facts.sessionsThisWeek
+    if (pending <= 0 || facts.freeTrainingDaysAhead < pending) return null
+    return {
+      type: 'REST',
+      rule: 'sport_day_with_room',
+      factors: [
+        {
+          key: 'scheduled_activity',
+          label: activity.name,
+          detail: `Hoy ya tienes ${activity.name.toLowerCase()} y quedan días sin deporte esta semana para entrenar, así que hoy no sumo otra sesión.`,
+          direction: 'limits',
+        },
+      ],
+    }
+  },
+}
+
+/**
+ * El día después de un deporte exigente, con la fatiga alta o tras un día
+ * doble (deporte y entreno): hoy se recupera. Una sesión de otra zona no quita
+ * el cansancio general.
+ */
+const afterDemandingSport: Rule = {
+  id: 'after_demanding_sport',
+  evaluate(facts) {
+    const activity = facts.yesterdayActivity
+    if (activity?.intensity !== 'alta') return null
+    const tired = facts.fatigueLevel !== null && facts.fatigueLevel >= HIGH_FATIGUE_LEVEL
+    const doubleDay = facts.daysSinceLastWorkout === 1
+    if (!tired && !doubleDay) return null
+    const name = activity.name.toLowerCase()
+    return {
+      type: 'RECOVERY',
+      rule: 'after_demanding_sport',
+      factors: [
+        {
+          key: 'activity_yesterday',
+          label: activity.name,
+          detail: tired
+            ? `Ayer tuviste ${name} exigente y hoy tienes la fatiga muscular alta: hoy toca recuperar.`
+            : `Ayer tuviste ${name} exigente y además entrenaste: después de un día doble, hoy toca recuperar.`,
+          direction: 'limits',
+        },
+      ],
+    }
+  },
+}
+
 /**
  * Describe una actividad con el detalle que realmente se conoce.
  *
@@ -442,6 +557,10 @@ export const AXIS_RULES: readonly Rule[] = [
   alreadyTrainedToday,
   lowRecovery,
   notAvailableToday,
+  activeStreak,
+  weeklyCapReached,
+  sportDayWithRoom,
+  afterDemandingSport,
   demandingActivityToday,
   demandingActivityTomorrow,
   notEnoughTime,

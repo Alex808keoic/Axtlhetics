@@ -47,7 +47,7 @@ export function EntrenamientoScreen({
   /** Abre el perfil, para contestar la evaluación inicial (D-058). */
   onOpenPerfil: () => void
 }) {
-  const { proposal, openChangeConversation, sessions, weekView, chooseNormalVersion, today, movedToTomorrow, profile, weeklyReview } =
+  const { proposal, openChangeConversation, sessions, weekView, chooseNormalVersion, today, movedToTomorrow, profile, weeklyReview, plannedSessions } =
     useAxtlhetics()
 
   const trains = proposal ? isTrainingRecommendation(proposal.type) : false
@@ -56,7 +56,7 @@ export function EntrenamientoScreen({
   // Series de la semana por grupo frente al objetivo (D-034).
   const volumes = weeklyVolume(sessions, today, EXERCISE_CATALOG, profile?.experience ?? 'intermedio')
   // El reparto de la semana entre los objetivos (D-047), en una frase.
-  const quota = profile ? weeklyQuota(profile.goals, profile.availableWeekdays.length, weekIndexOf(today)) : []
+  const quota = profile ? weeklyQuota(profile.goals, plannedSessions, weekIndexOf(today)) : []
   const hard = session?.intensity === 'alta'
 
   // La sesión por fases: el calentamiento y la vuelta a la calma se pliegan para

@@ -17,6 +17,7 @@ import {
   currentSetNumber,
   currentVolumeKg,
   hasProgress,
+  hasTrainingProgress,
   nextEntry,
   nextSetAdvice,
   reserveQuestionFor,
@@ -142,21 +143,27 @@ export function EntrenamientoActivo() {
    */
   if (confirming === 'exit') {
     const sets = completedSetsTotal(activeWorkout)
+    // Solo calentamiento: no se guarda nada (D-096).
+    const warmupOnly = !hasTrainingProgress(activeWorkout)
     return (
       <Confirmation
         title="¿Dejas el entrenamiento?"
         body={
-          <>
-            Llevas{' '}
-            <span className="font-semibold text-foreground tabular-nums">
-              {sets} {sets === 1 ? 'serie' : 'series'}
-            </span>{' '}
-            en {formatDuration(elapsed)}. Se guardará como sesión interrumpida y no podrás
-            retomarla.
-          </>
+          warmupOnly ? (
+            <>Solo llevas el calentamiento, así que no se guardará como entrenamiento.</>
+          ) : (
+            <>
+              Llevas{' '}
+              <span className="font-semibold text-foreground tabular-nums">
+                {sets} {sets === 1 ? 'serie' : 'series'}
+              </span>{' '}
+              en {formatDuration(elapsed)}. Se guardará como sesión interrumpida y no podrás
+              retomarla.
+            </>
+          )
         }
         stayLabel="Seguir entrenando"
-        leaveLabel="Salir y guardar lo hecho"
+        leaveLabel={warmupOnly ? 'Salir' : 'Salir y guardar lo hecho'}
         leaveTone="error"
         onStay={() => setConfirming(null)}
         onLeave={() => void abandonWorkout()}

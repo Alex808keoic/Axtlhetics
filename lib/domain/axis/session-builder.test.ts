@@ -36,6 +36,7 @@ import {
   suggestWorkFor,
   targetDifficultyFor,
   titleFor,
+  workGoalFor,
 } from './session-builder'
 import { SKIP_PENALTY_DAYS } from '../workouts/history'
 
@@ -1011,4 +1012,41 @@ test('D-041: con diferencia entre lados, al menos un ejercicio a una mano o una 
     const main = session.exercises.filter(isMainExercise)
     assert.ok(main.some((item) => item.unilateral), `${focus}: ${main.map((item) => item.exerciseId).join(', ')}`)
   }
+})
+
+// ---------------------------------------------------------------------------
+// La edad y el peso (D-096)
+// ---------------------------------------------------------------------------
+
+test('D-096: un menor de 16 no trabaja a repeticiones bajas con carga, ni en fuerza', () => {
+  // Un compuesto con carga que, para un adulto con estas pesas, va a repeticiones de fuerza.
+  const compound = EXERCISE_CATALOG.find(
+    (item) => usesLoad(item) && workGoalFor(item, 'fuerza', FULL_GEAR) === 'fuerza',
+  )
+  assert.ok(compound, 'hace falta un compuesto de fuerza en el catálogo')
+  assert.equal(workGoalFor(compound!, 'fuerza', FULL_GEAR, true), 'hipertrofia')
+  const options = { intensity: 'moderada' as const, goal: 'fuerza' as const, experience: 'intermedio' as const, gear: FULL_GEAR }
+  const adult = suggestWorkFor(compound!, options)
+  const youth = suggestWorkFor(compound!, { ...options, youth: true })
+  assert.ok(youth.reps > adult.reps, `${compound!.name}: ${youth.reps} frente a ${adult.reps}`)
+  // Los saltos no cambian: no son carga.
+  const jump = EXERCISE_CATALOG.find((item) => item.category === 'pliometria')!
+  assert.equal(workGoalFor(jump, 'fuerza', FULL_GEAR, true), 'fuerza')
+})
+
+test('D-096: con el peso muy por encima para la altura, la sesión no lleva saltos', () => {
+  const options = { ...ROTATION, focus: 'tren_inferior' as const, jumpSport: true }
+  const withJumps = buildSession(options).exercises.filter(isMainExercise)
+  assert.ok(withJumps.some((item) => exercise(item.exerciseId).category === 'pliometria'))
+  const without = buildSession({ ...options, noJumps: true }).exercises.filter(isMainExercise)
+  assert.ok(!without.some((item) => exercise(item.exerciseId).category === 'pliometria'))
+})
+
+test('D-096: un menor ligero empieza con menos peso', () => {
+  const loaded = EXERCISE_CATALOG.find((item) => usesLoad(item) && (item.startLoadKg ?? 0) >= 10 && item.category === 'piernas')
+  assert.ok(loaded)
+  const options = { intensity: 'moderada' as const, goal: 'hipertrofia' as const, experience: 'intermedio' as const, gear: FULL_GEAR }
+  const normal = suggestWorkFor(loaded!, options).weightKg ?? 0
+  const light = suggestWorkFor(loaded!, { ...options, bodyStartFactor: 0.6 }).weightKg ?? 0
+  assert.ok(light < normal, `${loaded!.name}: ${light} frente a ${normal}`)
 })

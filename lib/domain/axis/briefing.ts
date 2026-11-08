@@ -155,6 +155,10 @@ export type AxisBriefing = {
     typicalSessionMinutes: number
     availableMinutesToday: number
     sports: { name: string; weekdays: number[]; intensity: string }[]
+    /** Peso para la altura y la edad (D-096): «delgadez», «justo», «normal», «sobrepeso» u «obesidad». */
+    bodyBuild: string | null
+    /** La semana (D-096): sesiones que tocan, hechas de lunes a ayer y días seguidos activos. */
+    week: { sessions: number; done: number; activeStreak: number }
     /** Objetivos medibles con su progreso (D-035): la mejor serie frente a la cifra. */
     targets: {
       exercise: string
@@ -303,6 +307,8 @@ export function buildBriefing(
           availableToday: facts.isAvailableToday,
           typicalSessionMinutes: context.profile.typicalSessionMinutes,
           availableMinutesToday: facts.availableMinutes,
+          bodyBuild: facts.bodyBuild?.band ?? null,
+          week: { sessions: facts.weeklySessionCap, done: facts.sessionsThisWeek, activeStreak: facts.activeStreak },
           sports: sportsFromActivities(context.activities).map((sport) => ({
             name: sport.name,
             weekdays: [...sport.weekdays],

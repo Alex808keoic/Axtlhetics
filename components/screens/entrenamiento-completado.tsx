@@ -222,8 +222,8 @@ export function EntrenamientoCompletado() {
  * aviso breve; el resto de días, solo la lista. AXIS dice los hechos.
  */
 function SessionXp({ sessionId }: { sessionId: string }) {
-  const { progression, profile } = useAxtlhetics()
-  const award = sessionAward(sessionId, progression, profile?.availableWeekdays.length ?? 0)
+  const { progression, plannedSessions } = useAxtlhetics()
+  const award = sessionAward(sessionId, progression, plannedSessions)
   if (award.events.length === 0) return null
   const levelUp = award.levelAfter > award.levelBefore
 

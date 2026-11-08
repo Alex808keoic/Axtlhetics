@@ -79,7 +79,7 @@ import {
   completeSet as completeSetIn,
   completeWork as completeWorkIn,
   extendRest as extendRestIn,
-  hasProgress,
+  hasTrainingProgress,
   markProposalChanged,
   reconcileStoredWorkout,
   setReserve as setReserveIn,
@@ -122,6 +122,8 @@ import { progression as computeProgression, type Progression } from '../domain/p
 import { nutritionTargets as computeNutritionTargets, withAdjustment, type NutritionGoal, type NutritionTargets } from '../domain/nutrition/targets'
 import { lowIntakeYesterday, type MealEntry } from '../domain/nutrition/intake'
 import { currentWeight } from '../domain/body/measurements'
+import { plannedSessionsPerWeek, sportDaysInWeek } from '../domain/workouts/weekly-cap'
+import { bodyStartFactor, isYouth } from '../domain/body/build'
 import {
   emptyMeasurement,
   sortMeasurements,
@@ -233,6 +235,8 @@ type AxtlheticsStore = {
   weeklyReview: WeeklyReview | null
   /** Tu nivel (D-071), calculado del historial: no se guarda aparte. */
   progression: Progression
+  /** Las sesiones que tocan esta semana (D-096): experiencia, edad y deporte. */
+  plannedSessions: number
   /** Peso y medidas (D-060), del día más antiguo al más reciente. */
   measurements: BodyMeasurement[]
   /** Apunta el peso de hoy. */
@@ -611,6 +615,9 @@ export function AxtlheticsProvider({ children }: { children: ReactNode }) {
    * se construyera por separado en cada sitio, dos de ellos podrían acabar
    * mirando estados distintos del mismo día.
    */
+  // Las sesiones de la semana (D-096): no los días marcados, sino lo que toca con el deporte.
+  const plannedSessions = useMemo(() => plannedSessionsPerWeek(profile, activities, today), [profile, activities, today])
+
   // Las cifras de alimentación de hoy (D-061, D-066): las usan la sección, la revisión y el motor.
   const nutritionTargets = useMemo<NutritionTargets | null>(
     () =>
@@ -621,10 +628,11 @@ export function AxtlheticsProvider({ children }: { children: ReactNode }) {
             weightKg: currentWeight(measurements, profile.weightKg),
             heightCm: profile.heightCm,
             sex: profile.sex ?? null,
-            trainingDays: profile.availableWeekdays.length,
+            // Días activos de la semana: los entrenos que tocan y los días de deporte (D-096).
+            trainingDays: Math.min(7, plannedSessions + sportDaysInWeek(activities, today).length),
           })
         : null,
-    [profile, measurements],
+    [profile, measurements, plannedSessions, activities, today],
   )
 
   const axisContext = useMemo(() => {
@@ -646,6 +654,8 @@ export function AxtlheticsProvider({ children }: { children: ReactNode }) {
       // Modelos del dominio, ya validados por el repositorio: AXIS no ve el almacén.
       assessments: assessments.assessments,
       scans: scans.scans,
+      // El peso de hoy para la complexión (D-096).
+      weightKg: profile ? currentWeight(measurements, profile.weightKg) : null,
     })
   }, [
     status,
@@ -724,10 +734,11 @@ export function AxtlheticsProvider({ children }: { children: ReactNode }) {
             recovery: recentRecovery,
             catalog: EXERCISE_CATALOG,
             measurements,
+            activities,
             nutrition: nutritionTargets ? { kcal: nutritionTargets.kcal, proteinLow: nutritionTargets.proteinGrams[0] } : null,
           })
         : null,
-    [status, today, profile, sessions, recentRecovery, measurements, nutritionTargets],
+    [status, today, profile, sessions, recentRecovery, measurements, nutritionTargets, activities],
   )
 
   // AXIS habla primero (D-038): una nota, la más importante, con lo que la app ya sabe.
@@ -756,9 +767,9 @@ export function AxtlheticsProvider({ children }: { children: ReactNode }) {
         assessments: assessments.assessments,
         scans: scans.scans,
         measurements,
-        plannedDaysPerWeek: profile?.availableWeekdays.length ?? 0,
+        plannedDaysPerWeek: plannedSessions,
       }),
-    [sessions, assessments.assessments, scans.scans, measurements, profile],
+    [sessions, assessments.assessments, scans.scans, measurements, plannedSessions],
   )
 
   const axisSuggestions = useMemo(
@@ -1177,6 +1188,9 @@ export function AxtlheticsProvider({ children }: { children: ReactNode }) {
         deload: current.plan.deload ?? false,
         gear: gearNow,
         sex: profile.sex ?? null,
+        // La edad y el peso (D-096), como en la sesión que propone AXIS.
+        youth: isYouth(profile.age),
+        bodyStartFactor: bodyStartFactor(profile.age, currentWeight(measurements, profile.weightKg)),
       })
       replaceActiveWorkout(
         swapExerciseIn(current, {
@@ -1190,7 +1204,7 @@ export function AxtlheticsProvider({ children }: { children: ReactNode }) {
       )
       return true
     },
-    [profile, sessions, gearNow, replaceActiveWorkout],
+    [profile, sessions, gearNow, replaceActiveWorkout, measurements],
   )
 
   /**
@@ -1294,7 +1308,8 @@ export function AxtlheticsProvider({ children }: { children: ReactNode }) {
        * al abandonar. Tampoco se borra la elección del día: el día sigue sin
        * entrenar, así que lo que el usuario eligió sigue en pie.
        */
-      if (!hasProgress(workout)) {
+      // Solo calentamiento tampoco es haber entrenado (D-096).
+      if (!hasTrainingProgress(workout)) {
         replaceActiveWorkout(null)
         return
       }
@@ -1317,8 +1332,8 @@ export function AxtlheticsProvider({ children }: { children: ReactNode }) {
     const workout = workoutRef.current
     if (!workout) return
     replaceActiveWorkout(null)
-    // Una sesión sin ninguna serie no ensucia el historial: no se guarda.
-    if (hasProgress(workout)) {
+    // Una sesión sin ninguna serie de entrenamiento no ensucia el historial: no se guarda (D-096).
+    if (hasTrainingProgress(workout)) {
       const session = toWorkoutSession(workout, { status: 'abandoned' })
       // También pasa por el resumen (D-019): lo hecho se ve y se puede valorar.
       setLastCompleted(session)
@@ -1750,6 +1765,7 @@ export function AxtlheticsProvider({ children }: { children: ReactNode }) {
       axisNote,
       weeklyReview,
       progression,
+      plannedSessions,
       measurements,
       saveWeight,
       savePerimeters,
@@ -1837,6 +1853,7 @@ export function AxtlheticsProvider({ children }: { children: ReactNode }) {
       axisNote,
       weeklyReview,
       progression,
+      plannedSessions,
       measurements,
       saveWeight,
       savePerimeters,

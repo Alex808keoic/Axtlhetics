@@ -40,6 +40,8 @@ export type AxisContextInput = {
   assessments?: readonly Assessment[]
   /** Escaneos corporales guardados (D-023). Por defecto, ninguno. */
   scans?: readonly ScanRecord[]
+  /** El peso de hoy (D-096): el último apuntado. Por defecto, el del perfil. */
+  weightKg?: number | null
   catalog?: readonly Exercise[]
   /** Momento de la decisión. Inyectable para que los tests sean deterministas. */
   now?: Date
@@ -75,6 +77,7 @@ export function buildAxisContext(input: AxisContextInput): AxisContext {
     lowIntakeYesterday: input.lowIntakeYesterday ?? null,
     assessments: input.assessments ?? [],
     scans: input.scans ?? [],
+    weightKg: input.weightKg ?? input.profile?.weightKg ?? null,
     catalog: input.catalog ?? EXERCISE_CATALOG,
   }
 }

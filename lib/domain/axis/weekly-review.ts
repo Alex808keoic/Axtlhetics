@@ -23,6 +23,8 @@ import { formatKg } from '../workouts/history'
 import { bestOneRepMax, roundKg } from '../workouts/strength'
 import { isMainExercise, MUSCLE_GROUP_LABELS, type Exercise, type WorkoutSession } from '../workouts/types'
 import { laggingGroup, weeklyVolume } from '../workouts/weekly-volume'
+import { plannedSessionsPerWeek } from '../workouts/weekly-cap'
+import type { ScheduledActivity } from '../profile/types'
 
 type ProfileForReview = Pick<UserProfile, 'age' | 'availableWeekdays' | 'experience'>
 
@@ -77,6 +79,8 @@ export function weeklyReview(input: {
   catalog: readonly Exercise[]
   /** Peso y medidas (D-060). */
   measurements?: readonly BodyMeasurement[]
+  /** Los deportes del calendario (D-096): cuentan para las sesiones que tocaban. */
+  activities?: readonly ScheduledActivity[]
   /** Las cifras de alimentación de hoy (D-061, D-066): con ellas, los gramos dicen si llegó a la proteína. */
   nutrition?: { kcal: number; proteinLow: number } | null
 }): WeeklyReview | null {
@@ -96,7 +100,8 @@ export function weeklyReview(input: {
   const review: WeeklyReview = {
     weekStart,
     sessions: done.length,
-    planned: profile?.availableWeekdays.length ?? done.length,
+    // Las sesiones que tocaban esa semana (D-096), no los días marcados.
+    planned: profile ? plannedSessionsPerWeek(profile, input.activities ?? [], weekStart) : done.length,
     improvements: improvementsOf(done, sessions.filter((session) => session.status === 'completed' && session.dayKey < weekStart)),
     averageSleepHours: sleep.length > 0 ? Math.round((sleep.reduce((a, b) => a + b, 0) / sleep.length) * 10) / 10 : null,
     averageRecovery: scores.length > 0 ? Math.round(scores.reduce((a, b) => a + b, 0) / scores.length) : null,

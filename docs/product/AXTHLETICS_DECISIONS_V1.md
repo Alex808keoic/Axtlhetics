@@ -2834,6 +2834,44 @@ Lógica, datos, textos, navegación, funciones y las figuras de ejercicios. Solo
 
 ---
 
+## D-096 — La semana como un todo: descanso, edad y peso para la altura
+
+**Fecha:** 2026-11-08 · **Estado:** aprobada e implementada · Pedido por Alex tras una semana real (baloncesto lunes, miércoles y jueves, partido el sábado, y entrenos martes, jueves, viernes y sábado: el domingo AXIS volvía a proponer entrenar): «¿está bien diseñado?… impleméntalo… que los entrenos y las decisiones tengan en cuenta la edad, el peso y la altura… y si ves más cosas arreglables, arréglalas». **Cambia** D-047 (cuántas sesiones se reparten), D-071 (el bonus de semana), D-061 (el factor de actividad) y D-059 (las sesiones previstas); **amplía** D-089 y D-093 (el deporte cuenta).
+
+### Cuántas sesiones tocan a la semana
+
+- **Los días disponibles dicen cuándo se puede entrenar, no cuántas veces** (`lib/domain/workouts/weekly-cap.ts`). Las sesiones de la semana (`weeklySessionCap`) salen de la **experiencia** (principiante 3, intermedio 4, avanzado 5), la **edad** (menos de 16 años, como mucho 3; de 16 a 17 y desde los 65, como mucho 4) y el **deporte**: entre entrenos y deporte, como mucho **6 días activos**; cada día con deporte de esa semana (recurrente o partido con fecha) resta un hueco, sin bajar de **2 sesiones**. Nunca más que los días marcados.
+- Ese número reparte los objetivos (D-047), es el «previsto» de la revisión semanal (D-059), da el bonus de semana del nivel (D-071) y, sumado a los días de deporte, el factor de actividad de las calorías (D-061).
+
+### Reglas nuevas del motor (en este orden, después de «día no disponible»)
+
+1. **`active_streak` → descanso**: 6 días seguidos con entreno o deporte (de ayer hacia atrás; el deporte de ayer que no se jugó no cuenta). «Llevas 6 días seguidos entre entrenos y deporte: hoy toca un día libre…».
+2. **`weekly_cap_reached` → descanso**: las sesiones de la semana ya están hechas.
+3. **`sport_day_with_room` → descanso**: hoy hay deporte de exigencia **media o alta** y quedan, después de hoy, días disponibles sin deporte para las sesiones pendientes. Un día doble, solo si no hay otro hueco. Un deporte suave no cuenta.
+4. **`after_demanding_sport` → recuperación**: ayer hubo un deporte de exigencia alta y hoy la fatiga muscular es 4 o más, o ayer además se entrenó (día doble).
+
+Como siempre (D-030), el usuario puede pedir entrenar igual: el descanso trae sesión corta, otras zonas y movilidad.
+
+### Edad, peso y altura
+
+- **Peso para la altura y la edad** (`lib/domain/body/build.ts`, `bodyBuild`): de 5 a 19 años, el IMC frente a la referencia de la OMS de 2007 por edad y sexo (`WHO_BMI_FOR_AGE`, por año cumplido; sin sexo, la media): por debajo de −2 DE **delgadez**, de −2 a −1 DE **justo de peso**, por encima de +1 DE **sobrepeso** y de +2 DE **obesidad**. Desde los 20, los cortes de adulto (17, 18,5, 25 y 30). Usa el último peso apuntado. **No es un diagnóstico ni habla de estética**; con 14 años, 40,5 kg y 161 cm sale «justo de peso».
+- **Quien va justo de peso o por debajo no recibe déficit**, tampoco un adulto: el mínimo es lo que gasta. En días de entreno, un factor `body_build`: «Para tu edad y altura vas justo de peso: come bien hoy, sobre todo antes de entrenar…».
+- **Con obesidad, sin el bloque de saltos** (D-033): menos impacto en las articulaciones.
+- **Menores de 16 años: nada a repeticiones bajas con carga**, ni en fuerza ni en rendimiento (`workGoalFor(…, youth)`): repeticiones medias y la fuerza por técnica y variantes. Un factor `youth` lo explica cuando el objetivo es de fuerza.
+- **Un menor que pesa menos de 70 kg empieza con menos peso**: la referencia del catálogo × peso / 70, como mínimo × 0,6 (`bodyStartFactor`). También al cambiar ejercicio (D-095).
+- El briefing lleva la banda (`bodyBuild`) y la semana (sesiones que tocan, hechas y días seguidos) para que la IA hable con lo mismo que decide el motor.
+
+### Lo que se arregló de paso
+
+- **Calentar y cambiar de sesión ya no deja un «entreno abandonado»**: una sesión solo se guarda (abandonada, terminada o recuperada otro día) con al menos una serie del entrenamiento, no del calentamiento (`hasTrainingProgress`). Al salir con solo el calentamiento, la confirmación lo dice: «no se guardará como entrenamiento».
+
+### Pendiente
+
+- Los valores de la tabla de la OMS van redondeados a una décima y por año; si se quiere más precisión, se pueden pasar a la tabla mensual LMS.
+- Un deporte de exigencia baja sigue sin contar como día doble; si en la práctica cansa, se cambia aquí.
+
+---
+
 ## Decisiones pendientes
 
 Nada de lo que sigue debe inventarse ni resolverse sin aprobación explícita de Alex.

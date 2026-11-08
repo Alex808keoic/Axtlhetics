@@ -27,6 +27,9 @@ import {
   weekProgress,
   type GoalProgress,
 } from '../workouts/weekly-plan'
+import { plannedSessionsPerWeek } from '../workouts/weekly-cap'
+import { BODY_BUILD_TEXT, bodyStartFactor, isLean, isYouth } from '../body/build'
+import { isStrengthLowRepGoal } from './session-builder'
 import type { TrainingGoal } from '../profile/types'
 import { isHardDay } from './hard-day'
 import { isRampUp, needsMedicalClearance, RAMP_UP_SESSIONS } from '../profile/screening'
@@ -101,6 +104,8 @@ export function decide(context: AxisContext): AxisDecision {
   const careFactor = training ? careZonesFactor(context.profile?.careZones ?? []) : null
   const screeningFactor = training ? (clearance ? healthFactor() : rampUp ? rampUpFactor() : null) : null
   const sportFactor = training ? yesterdaySportFactor(facts, plan) : null
+  const bodyFactor = training ? bodyBuildFactor(facts) : null
+  const ageFactor = training ? youthFactor(facts, goal) : null
   const [firstRule, ...otherRules] = outcome.factors
   const factors = [
     ...(deloadWhy && training ? [deloadFactor(deloadWhy)] : []),
@@ -113,6 +118,9 @@ export function decide(context: AxisContext): AxisDecision {
     ...(hard ? [hardDayFactor()] : []),
     // Qué toca hoy de la semana (D-047), justo después de por qué se entrena así.
     ...(weekFactor ? [weekFactor] : []),
+    // La edad y el peso explican cómo se ajusta la sesión, no por qué se entrena (D-096).
+    ...(bodyFactor ? [bodyFactor] : []),
+    ...(ageFactor ? [ageFactor] : []),
     ...otherRules,
     // El escaneo va después: explica cómo se ajusta la sesión, no por qué se entrena hoy (D-041).
     ...(scanFactor ? [scanFactor] : []),
@@ -154,6 +162,31 @@ function yesterdaySportFactor(facts: AxisFacts, plan: DayPlan): AxisFactor | nul
   }
 }
 
+/**
+ * Quien va justo de peso para su edad y altura (D-096): lo que importa hoy es
+ * comer suficiente. Nunca habla de estética.
+ */
+function bodyBuildFactor(facts: AxisFacts): AxisFactor | null {
+  if (!isLean(facts.bodyBuild)) return null
+  return {
+    key: 'body_build',
+    label: 'Peso para tu altura',
+    detail: `${BODY_BUILD_TEXT[facts.bodyBuild!.band]}: come bien hoy, sobre todo antes de entrenar, para que el entreno sume músculo.`,
+    direction: 'limits',
+  }
+}
+
+/** Un menor de 16 con un objetivo de fuerza (D-096): técnica y repeticiones medias, sin cargas máximas. */
+function youthFactor(facts: AxisFacts, goal: TrainingGoal): AxisFactor | null {
+  if (!isYouth(facts.age) || !isStrengthLowRepGoal(goal)) return null
+  return {
+    key: 'youth',
+    label: 'Tu edad',
+    detail: `Con ${facts.age} años, la fuerza se trabaja con buena técnica y repeticiones medias, sin cargas máximas: así se progresa sin riesgo mientras creces.`,
+    direction: 'limits',
+  }
+}
+
 /** Una respuesta de salud con «sí» (D-058). Nunca diagnostica. */
 function healthFactor(): AxisFactor {
   return {
@@ -190,7 +223,8 @@ function hardDayFactor(): AxisFactor {
 /** Lo que se reparte esta semana y lo que ya está hecho. */
 function weekPlanFor(context: AxisContext): GoalProgress[] {
   const goals = context.profile?.goals ?? DEFAULT_GOALS
-  const days = context.profile?.availableWeekdays.length ?? 3
+  // Las sesiones que tocan (D-096), no los días marcados.
+  const days = plannedSessionsPerWeek(context.profile, context.activities, context.dayKey)
   const quota = weeklyQuota(goals, days, weekIndexOf(context.dayKey))
   return weekProgress(quota, context.recentSessions, context.dayKey)
 }
@@ -367,6 +401,10 @@ function planSession(
     // Lo que el usuario cuida y su sexo (D-051).
     careZones: context.profile?.careZones ?? [],
     sex: context.profile?.sex ?? null,
+    // La edad y el peso para la altura (D-096).
+    youth: isYouth(facts.age),
+    noJumps: facts.bodyBuild?.band === 'obesidad',
+    bodyStartFactor: bodyStartFactor(facts.age, context.weightKg ?? context.profile?.weightKg),
     // Brazos y hombros también en fuerza, si lo pidió (D-092).
     strengthAccessories: context.profile?.strengthAccessories ?? false,
     // El nivel que el usuario eligió en cada familia (D-065).

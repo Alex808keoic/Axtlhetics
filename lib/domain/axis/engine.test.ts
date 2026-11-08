@@ -205,14 +205,17 @@ test('si hoy no es un día disponible, recomienda descansar', () => {
 // Actividades con horario fijo
 // ---------------------------------------------------------------------------
 
+// Con solo hoy disponible no hay otro día para entrenar: el deporte adapta la sesión (D-096).
+const ONLY_MONDAY = profile({ availableWeekdays: [0] })
+
 test('con baloncesto por la tarde adapta la sesión en lugar de ignorarlo', () => {
-  const decision = decide(contextWith({ activities: [basketball()] }))
+  const decision = decide(contextWith({ profile: ONLY_MONDAY, activities: [basketball()] }))
   assert.equal(decision.primary.type, 'MODIFIED_TRAINING')
   assert.match(decision.primary.reason, /baloncesto/i)
 })
 
 test('con baloncesto adaptando la sesión, no carga las piernas', () => {
-  const decision = decide(contextWith({ activities: [basketball()] }))
+  const decision = decide(contextWith({ profile: ONLY_MONDAY, activities: [basketball()] }))
   const groups = decision.primary.session?.muscleGroups ?? []
   assert.ok(!groups.includes('piernas'), `no debería cargar piernas, trajo ${groups.join(', ')}`)
 })
@@ -220,6 +223,7 @@ test('con baloncesto adaptando la sesión, no carga las piernas', () => {
 test('si el baloncesto empieza en menos de hora y media, recomienda recuperar', () => {
   const decision = decide(
     contextWith({
+      profile: ONLY_MONDAY,
       activities: [basketball({ startMinute: minutesFromMidnight(11, 0) })],
     }),
   )
@@ -229,6 +233,7 @@ test('si el baloncesto empieza en menos de hora y media, recomienda recuperar', 
 test('una actividad que ya ha terminado no condiciona el día', () => {
   const decision = decide(
     contextWith({
+      profile: ONLY_MONDAY,
       activities: [
         basketball({
           startMinute: minutesFromMidnight(7, 0),
@@ -829,7 +834,9 @@ function contextOn(
 /** La regla que decide cada día, o el tipo si ninguna regla de actividad entra. */
 function ruleOn(dayKey: string, activities: ScheduledActivity[]): string {
   const { primary } = decide(contextOn(dayKey, activities))
-  return primary.rule === 'demanding_activity_today' || primary.rule === 'demanding_activity_tomorrow'
+  return primary.rule === 'demanding_activity_today' ||
+    primary.rule === 'demanding_activity_tomorrow' ||
+    primary.rule === 'sport_day_with_room'
     ? primary.rule
     : primary.type
 }
@@ -863,14 +870,15 @@ test('partido el miércoles: también funciona entre semana', () => {
   const activities = [matchOn('2026-09-09')]
   assert.deepEqual(
     WEEK.map((dayKey) => ruleOn(dayKey, activities)),
-    ['TRAINING', 'demanding_activity_tomorrow', 'demanding_activity_today', 'TRAINING', 'TRAINING', 'TRAINING', 'TRAINING'],
+    // Con días libres por delante, el día del partido no suma otro entreno (D-096).
+    ['TRAINING', 'demanding_activity_tomorrow', 'sport_day_with_room', 'TRAINING', 'TRAINING', 'TRAINING', 'TRAINING'],
   )
 })
 
 test('salto domingo → lunes: un partido el lunes suaviza el domingo anterior', () => {
   // Con fecha y recurrente: los dos tienen que cruzar el cambio de semana.
   assert.equal(ruleOn('2026-09-13', [matchOn(NEXT_MONDAY)]), 'demanding_activity_tomorrow')
-  assert.equal(ruleOn(NEXT_MONDAY, [matchOn(NEXT_MONDAY)]), 'demanding_activity_today')
+  assert.equal(ruleOn(NEXT_MONDAY, [matchOn(NEXT_MONDAY)]), 'sport_day_with_room')
 
   const weeklyMonday = matchOn(NEXT_MONDAY, { date: null, weekday: 0 })
   assert.equal(ruleOn('2026-09-13', [weeklyMonday]), 'demanding_activity_tomorrow')

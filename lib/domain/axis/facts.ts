@@ -17,6 +17,8 @@ import { computeTrainingLoad } from '../workouts/load'
 import { fulfilmentOf, weeklyVolume } from '../workouts/weekly-volume'
 import { latestScan, physiquePlan, PRIORITY_VOLUME_FACTOR } from '../scanner/physique'
 import type { ScheduledActivity } from '../profile/types'
+import { plannedSessionsPerWeek } from '../workouts/weekly-cap'
+import { bodyBuild } from '../body/build'
 import type { AxisContext, AxisFacts } from './types'
 
 /** Las zonas entre las que se reparte la fuerza; movilidad e intervalos tienen sesión propia. */
@@ -138,6 +140,24 @@ export function deriveFacts(context: AxisContext): AxisFacts {
 
   const sportSets = sportSetsThisWeek(activities, dayKey, cancelledYesterday)
 
+  // La semana como un todo (D-096): días seguidos activos, sesiones hechas y las que tocan.
+  const trainedDays = new Set(completedSessions.map((session) => session.dayKey))
+  const activeOn = (day: DayKey) =>
+    trainedDays.has(day) ||
+    activities.some(
+      // Un deporte semanal es la rutina del usuario: cuenta también antes de apuntarlo, como en D-093.
+      (activity) => activityOccursOn(activity, day) && !(day === yesterdayKey && cancelledYesterday.has(activity.name.toLowerCase())),
+    )
+  let activeStreak = 0
+  while (activeStreak < 7 && activeOn(addDays(dayKey, -(activeStreak + 1)))) activeStreak++
+  const monday = startOfWeek(dayKey)
+  const sessionsThisWeek = [...trainedDays].filter((day) => day >= monday && day < dayKey).length
+  let freeTrainingDaysAhead = 0
+  for (let day = addDays(dayKey, 1); day < addDays(monday, 7); day = addDays(day, 1)) {
+    const available = profile ? isAvailableOn(profile, weekdayOfKey(day)) : true
+    if (available && !activities.some((activity) => activityOccursOn(activity, day))) freeTrainingDaysAhead++
+  }
+
   return {
     recoveryValue,
     recoveryKnown: recoveryValue !== null,
@@ -179,6 +199,14 @@ export function deriveFacts(context: AxisContext): AxisFacts {
       }),
     ) as Record<MuscleGroup, number>,
     physique,
+    activeStreak,
+    sessionsThisWeek,
+    weeklySessionCap: plannedSessionsPerWeek(profile, activities, dayKey),
+    freeTrainingDaysAhead,
+    age: profile?.age ?? null,
+    bodyBuild: profile
+      ? bodyBuild({ age: profile.age, weightKg: context.weightKg ?? profile.weightKg, heightCm: profile.heightCm, sex: profile.sex ?? null })
+      : null,
     trainingLoadBand: (() => {
       const load = computeTrainingLoad(recentSessions, dayKey)
       return load.status === 'ok' ? load.band : null

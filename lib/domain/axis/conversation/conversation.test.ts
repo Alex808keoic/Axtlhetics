@@ -84,6 +84,9 @@ function basketball(partial: Partial<ScheduledActivity> = {}): ScheduledActivity
   }
 }
 
+// Con solo hoy disponible no hay otro día para entrenar: el deporte adapta la sesión (D-096).
+const ONLY_MONDAY = profile({ availableWeekdays: [0] })
+
 function briefingWith(
   overrides: Partial<Parameters<typeof buildAxisContext>[0]> = {},
   sessions: WorkoutSession[] = [],
@@ -596,7 +599,7 @@ test('varios deportes el mismo día se consideran todos', () => {
 test('un deporte exigente hoy cambia la decisión', () => {
   const sin = decide(briefingWith({}, [session()]).context)
   const con = decide(
-    briefingWith({ activities: sportOn('Baloncesto', [0], 'alta') }, [session()]).context,
+    briefingWith({ profile: ONLY_MONDAY, activities: sportOn('Baloncesto', [0], 'alta') }, [session()]).context,
   )
 
   assert.equal(sin.primary.type, 'TRAINING')
@@ -678,7 +681,7 @@ test('sin deporte, preguntar cómo afecta lo dice en vez de inventarlo', () => {
 
 test('preguntar si se puede entrenar con deporte responde según la decisión real', () => {
   const conDeporte = briefingWith(
-    { activities: sportOn('Baloncesto', [0], 'alta') },
+    { profile: ONLY_MONDAY, activities: sportOn('Baloncesto', [0], 'alta') },
     [session()],
   ).briefing
   const answer = answerFromBriefing('¿Puedo entrenar aunque tenga deporte esta tarde?', conDeporte)
@@ -755,7 +758,7 @@ test('sin conversación previa, una pregunta suelta no se fuerza a un tema', () 
 // ---------------------------------------------------------------------------
 
 test('una respuesta compuesta no repite el mismo hecho dos veces', () => {
-  const { briefing } = briefingWith({ activities: sportOn('Baloncesto', [0], 'alta') }, [session()])
+  const { briefing } = briefingWith({ profile: ONLY_MONDAY, activities: sportOn('Baloncesto', [0], 'alta') }, [session()])
   const answer = answerFromBriefing('¿Y por qué no piernas?', briefing)
 
   const menciones = answer.text.toLowerCase().split('baloncesto').length - 1

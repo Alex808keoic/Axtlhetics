@@ -128,3 +128,15 @@ test('aceptar un ajuste lo suma y reinicia la cuenta; la forma guardada', () => 
   assert.ok(isUserProfile(JSON.parse(JSON.stringify(profile))))
   assert.ok(!isUserProfile({ ...profile, nutrition: { goal: 'adelgazar', adjustmentKcal: 0, since: '2026-10-21' } }))
 })
+
+test('D-096: quien va justo de peso para su altura no recibe déficit, aunque sea adulto', () => {
+  // 30 años, 55 kg y 180 cm: IMC 17,0, justo de peso.
+  const lean = { age: 30, weightKg: 55, heightCm: 180, sex: 'hombre' as const, trainingDays: 4 }
+  const result = nutritionTargets({ ...lean, plan: plan('perder_grasa') })
+  assert.equal(result.kcal, result.maintenanceKcal)
+  assert.match(result.text, /justo de peso/)
+  // Ganar músculo sigue con su superávit.
+  assert.ok(nutritionTargets({ ...lean, plan: plan('ganar_musculo') }).kcal > result.maintenanceKcal)
+  // Un adulto en rango normal sigue con su déficit moderado.
+  assert.ok(nutritionTargets({ ...ADULT, plan: plan('perder_grasa') }).kcal < nutritionTargets({ ...ADULT, plan: plan('mantener') }).kcal)
+})

@@ -15,6 +15,7 @@ import type { DayKey } from '../shared/dates'
 import type { Exercise, MuscleGroup, PlannedSession, SessionFocus, WorkoutSession } from '../workouts/types'
 import type { TrainingLoadBand } from '../workouts/load'
 import type { PhysiquePlan } from '../scanner/physique'
+import type { BodyBuild } from '../body/build'
 
 export type AxisRecommendationType =
   | 'TRAINING'
@@ -68,6 +69,14 @@ export type AxisFactorKey =
   | 'health_check'
   /** Las primeras sesiones de quien empieza o vuelve tras un parón (D-058). */
   | 'ramp_up'
+  /** Días seguidos entre entrenos y deporte (D-096). */
+  | 'active_streak'
+  /** Las sesiones de la semana ya están hechas (D-096). */
+  | 'weekly_cap'
+  /** Peso para la altura y la edad (D-096). */
+  | 'body_build'
+  /** Lo que cambia por la edad (D-096). */
+  | 'youth'
 
 /**
  * `supports` empuja hacia entrenar más, `limits` hacia entrenar menos.
@@ -172,6 +181,8 @@ export type AxisContext = {
    * opciones cuando se le pregunta; el motor no los lee para decidir (`P-017`).
    */
   scans?: readonly ScanRecord[]
+  /** El peso con el que trabajar hoy (D-060, D-096): el último apuntado o el del perfil. */
+  weightKg?: number | null
 }
 
 /**
@@ -242,4 +253,19 @@ export type AxisFacts = {
   trainingLoadBand: TrainingLoadBand | null
   /** Lo que el último escaneo pide a las sesiones (D-041), o `null` sin escaneo reciente. */
   physique: PhysiquePlan | null
+  /**
+   * Días seguidos con entreno o deporte justo antes de hoy (D-096), de ayer
+   * hacia atrás, como mucho 7. El deporte de ayer que no se jugó no cuenta.
+   */
+  activeStreak: number
+  /** Días con una sesión completada esta semana, de lunes a ayer (D-096). */
+  sessionsThisWeek: number
+  /** Las sesiones que tocan esta semana (D-096): experiencia, edad y deporte. */
+  weeklySessionCap: number
+  /** Días disponibles que quedan esta semana después de hoy sin ningún deporte (D-096). */
+  freeTrainingDaysAhead: number
+  /** La edad del perfil, o `null`. */
+  age: number | null
+  /** Peso para la altura y la edad (D-096), o `null` sin datos. */
+  bodyBuild: BodyBuild | null
 }
