@@ -434,6 +434,65 @@ export function changeExercise(
   }
 }
 
+/**
+ * `true` si el ejercicio en curso se puede cambiar por otro (D-095): del
+ * entrenamiento y sin el cronómetro en marcha. Con series hechas también: lo
+ * hecho se queda y el resto va con el nuevo.
+ */
+export function canSwapExercise(workout: ActiveWorkout): boolean {
+  const entry = currentEntry(workout)
+  return entry !== null && !entry.phase && !workout.work
+}
+
+/**
+ * Cambia el ejercicio en curso por otro (D-095). Sin series hechas, lo
+ * sustituye (como el nivel, D-065). Con series hechas, el ejercicio se queda
+ * con ellas y su objetivo de siempre —para que la progresión no lo lea como
+ * completo—, y el nuevo entra justo detrás con las series que faltaban. El
+ * descanso en curso sigue.
+ */
+export function swapExercise(
+  workout: ActiveWorkout,
+  replacement: Parameters<typeof changeExercise>[1],
+): ActiveWorkout {
+  const entry = currentEntry(workout)
+  if (!entry || !canSwapExercise(workout) || entry.exerciseId === replacement.exercise.id) return workout
+  if (entry.sets.length === 0) return changeExercise(workout, replacement)
+
+  const { exercise } = replacement
+  const done = entry.sets.length
+  const remaining = Math.max(1, entry.targetSets - done)
+  const added: ActiveExerciseEntry = {
+    exerciseId: exercise.id,
+    name: exercise.name,
+    imageUrl: exercise.imageUrl,
+    targetSets: remaining,
+    targetReps: replacement.reps,
+    restSeconds: entry.restSeconds,
+    isTimed: exercise.work.isTimed,
+    unilateral: exercise.unilateral,
+    reps: replacement.reps,
+    weightKg: replacement.weightKg,
+    sets: [],
+    ...withLoads(replacement.weightKg === null ? [] : replacement.loads),
+  }
+  const at = workout.exerciseIndex + 1
+  const note = replacement.note ? `, ${replacement.note}` : ''
+
+  return {
+    ...workout,
+    entries: [...workout.entries.slice(0, at), added, ...workout.entries.slice(at)],
+    exerciseIndex: at,
+    modifications: [
+      ...workout.modifications,
+      {
+        kind: 'exercise_changed',
+        detail: `${entry.name} → ${exercise.name} tras ${done} ${done === 1 ? 'serie' : 'series'}${note}.`,
+      },
+    ],
+  }
+}
+
 /** Pasa al siguiente ejercicio dejando constancia de que se saltó. */
 export function skipExercise(workout: ActiveWorkout): ActiveWorkout {
   const entry = currentEntry(workout)

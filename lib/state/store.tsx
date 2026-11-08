@@ -50,7 +50,7 @@ import { projectWeek, type WeekDayView } from '../domain/axis/week-view'
 import { buildAxisContext, gearToday } from '../domain/axis/context'
 import { availableEquipment, equipmentOf, loadsFor } from '../domain/workouts/equipment'
 import { levelOptions } from '../domain/workouts/levels'
-import { SWAP_REASON_NOTES, SWAP_REASONS, swapOptions, type SwapReason } from '../domain/workouts/swap'
+import { DISCOMFORT_MEMORY_ZONE, discomfortZonesOf, SWAP_REASON_NOTES, swapOptions, type SwapReason } from '../domain/workouts/swap'
 import { suggestWorkFor } from '../domain/axis/session-builder'
 import { createDeterministicAxisEngine } from '../domain/axis/engine'
 import type { AxisDecision, AxisProposal } from '../domain/axis/types'
@@ -63,7 +63,7 @@ import {
   type UserProfile,
   type UserProfileDraft,
 } from '../domain/profile/types'
-import { PRIMARY_PROFILE_ID } from '../domain/profile/types'
+import { CARE_ZONE_LABELS, PRIMARY_PROFILE_ID, type CareZone } from '../domain/profile/types'
 import { withSportKnowledge } from '../domain/profile/sport-knowledge'
 import { createHealthNoteReader, type HealthReading } from '../domain/profile/health-note'
 import { computeRecoveryScore } from '../domain/recovery/score'
@@ -84,7 +84,8 @@ import {
   reconcileStoredWorkout,
   setReserve as setReserveIn,
   canChangeLevel,
-  changeExercise as changeExerciseIn,
+  canSwapExercise,
+  swapExercise as swapExerciseIn,
   skipExercise as skipExerciseIn,
   skipRest as skipRestIn,
   startWork as startWorkIn,
@@ -103,6 +104,7 @@ import {
   movedFromDayBefore,
   openChangeThread,
   rememberAnswer,
+  rememberDiscomfort,
   rememberQuestion,
   undoLastApplied,
   type AxisDayMemory,
@@ -341,10 +343,14 @@ type AxtlheticsStore = {
   levelOptions: Exercise[]
   /** Cambia el ejercicio en curso a otra variante de su familia y recuerda el nivel (D-065). */
   changeExerciseLevel(exerciseId: string): Promise<void>
-  /** Las alternativas al ejercicio en curso para cada motivo (D-095); `null` si ya no se puede cambiar. */
-  swapOptions: Record<SwapReason, Exercise[]> | null
+  /** `true` si el ejercicio en curso se puede cambiar por otro, también con series hechas (D-095). */
+  canSwap: boolean
+  /** Las zonas por las que preguntar «¿dónde te molesta?» (D-095). */
+  swapZones: readonly CareZone[]
+  /** Las alternativas al ejercicio en curso para un motivo y, por molestias, una zona (D-095). */
+  swapOptionsFor(reason: SwapReason, zone?: CareZone | null): Exercise[]
   /** Cambia el ejercicio en curso por una alternativa, con su motivo (D-095). */
-  swapExercise(exerciseId: string, reason: SwapReason): Promise<void>
+  swapExercise(exerciseId: string, reason: SwapReason, zone?: CareZone | null): Promise<void>
   /** Termina el descanso ahora (D-019). */
   skipRest(): void
   /** Añade 15 s al descanso en curso (D-019). */
@@ -1131,33 +1137,38 @@ export function AxtlheticsProvider({ children }: { children: ReactNode }) {
     return levelOptions(exercise, { equipment: availableEquipment(gearNow), careZones: profile?.careZones ?? [] })
   }, [activeWorkout, gearNow, profile?.careZones])
 
-  /**
-   * Cambia el nivel del ejercicio en curso (D-065): la variante nueva con el
-   * trabajo que AXIS le pondría hoy, y el nivel queda guardado para su familia.
-   */
-  const currentSwapOptions = useMemo(() => {
+  /** El ejercicio en curso, si se puede cambiar por otro (D-095). */
+  const swappable = useMemo(() => {
     const entry = activeWorkout ? activeWorkout.entries[activeWorkout.exerciseIndex] : undefined
     const exercise = entry ? findExercise(entry.exerciseId) : null
-    if (!activeWorkout || !exercise || !canChangeLevel(activeWorkout)) return null
-    const filter = {
-      equipment: availableEquipment(gearNow),
-      careZones: profile?.careZones ?? [],
-      inSession: activeWorkout.entries.map((item) => item.exerciseId),
-      disliked: profile?.dislikedExercises ?? [],
-    }
-    return Object.fromEntries(
-      SWAP_REASONS.map(({ id }) => [id, swapOptions(exercise, id, filter)]),
-    ) as Record<SwapReason, Exercise[]>
-  }, [activeWorkout, gearNow, profile?.careZones, profile?.dislikedExercises])
+    return activeWorkout && exercise && canSwapExercise(activeWorkout) ? exercise : null
+  }, [activeWorkout])
+
+  const swapZones = useMemo(() => (swappable ? discomfortZonesOf(swappable) : []), [swappable])
+
+  const swapOptionsFor = useCallback(
+    (reason: SwapReason, zone: CareZone | null = null): Exercise[] => {
+      const current = workoutRef.current
+      if (!swappable || !current) return []
+      return swapOptions(swappable, reason, {
+        equipment: availableEquipment(gearNow),
+        careZones: profile?.careZones ?? [],
+        inSession: current.entries.map((item) => item.exerciseId),
+        disliked: profile?.dislikedExercises ?? [],
+        zone,
+      })
+    },
+    [swappable, gearNow, profile?.careZones, profile?.dislikedExercises],
+  )
 
   /**
-   * Pone otro ejercicio en el hueco del actual, con el trabajo que AXIS le
-   * pondría hoy (D-065, D-095).
+   * Pone otro ejercicio en lugar del actual, con el trabajo que AXIS le
+   * pondría hoy (D-065, D-095). Con series hechas, el nuevo sigue detrás.
    */
   const replaceCurrentExercise = useCallback(
     (exercise: Exercise, note?: string): boolean => {
       const current = workoutRef.current
-      if (!current || !profile || !canChangeLevel(current)) return false
+      if (!current || !profile || !canSwapExercise(current)) return false
       const work = suggestWorkFor(exercise, {
         intensity: current.plan.intensity,
         goal: current.plan.goal,
@@ -1168,7 +1179,7 @@ export function AxtlheticsProvider({ children }: { children: ReactNode }) {
         sex: profile.sex ?? null,
       })
       replaceActiveWorkout(
-        changeExerciseIn(current, {
+        swapExerciseIn(current, {
           exercise,
           sets: work.sets,
           reps: work.reps,
@@ -1184,16 +1195,20 @@ export function AxtlheticsProvider({ children }: { children: ReactNode }) {
 
   /**
    * Cambia el ejercicio en curso con un motivo (D-095). Si «no me gusta», queda
-   * apuntado (D-037); si la alternativa es de su familia, se recuerda el nivel
-   * como en D-065.
+   * apuntado (D-037); si la alternativa es de su familia y el motivo es la
+   * dificultad, se recuerda el nivel como en D-065; una molestia con su zona
+   * queda en la memoria del día, para que AXIS pregunte mañana (D-037).
    */
   const swapExercise = useCallback(
-    async (exerciseId: string, reason: SwapReason) => {
+    async (exerciseId: string, reason: SwapReason, zone: CareZone | null = null) => {
       const current = workoutRef.current
       const exercise = findExercise(exerciseId)
       const previousId = current ? current.entries[current.exerciseIndex]?.exerciseId : undefined
       const previous = previousId ? findExercise(previousId) : null
-      if (!exercise || !replaceCurrentExercise(exercise, SWAP_REASON_NOTES[reason])) return
+      const note = reason === 'molestia' && zone ? `molestias en ${CARE_ZONE_LABELS[zone].toLowerCase()}` : SWAP_REASON_NOTES[reason]
+      if (!exercise || !replaceCurrentExercise(exercise, note)) return
+
+      if (reason === 'molestia' && zone) commitMemory((memory) => rememberDiscomfort(memory, DISCOMFORT_MEMORY_ZONE[zone]))
 
       const family = exercise.family
       const sameFamily = family !== undefined && previous?.family === family
@@ -1205,13 +1220,18 @@ export function AxtlheticsProvider({ children }: { children: ReactNode }) {
         return { ...stored, dislikedExercises: previousId ? [...list, previousId] : list }
       }, 'No se pudo guardar el cambio en este dispositivo.')
     },
-    [replaceCurrentExercise, updateProfile],
+    [replaceCurrentExercise, updateProfile, commitMemory],
   )
 
+  /**
+   * Cambia el nivel del ejercicio en curso (D-065): la variante nueva con el
+   * trabajo que AXIS le pondría hoy, y el nivel queda guardado para su familia.
+   */
   const changeExerciseLevel = useCallback(
     async (exerciseId: string) => {
+      const current = workoutRef.current
       const exercise = findExercise(exerciseId)
-      if (!exercise || !replaceCurrentExercise(exercise)) return
+      if (!current || !exercise || !canChangeLevel(current) || !replaceCurrentExercise(exercise)) return
       const family = exercise.family
       if (!family) return
       await updateProfile(
@@ -1777,7 +1797,9 @@ export function AxtlheticsProvider({ children }: { children: ReactNode }) {
       skipExercise,
       levelOptions: currentLevelOptions,
       changeExerciseLevel,
-      swapOptions: currentSwapOptions,
+      canSwap: swappable !== null,
+      swapZones,
+      swapOptionsFor,
       swapExercise,
       skipRest,
       extendRest,
@@ -1861,7 +1883,9 @@ export function AxtlheticsProvider({ children }: { children: ReactNode }) {
       undoLastSet,
       skipExercise,
       currentLevelOptions,
-      currentSwapOptions,
+      swappable,
+      swapZones,
+      swapOptionsFor,
       swapExercise,
       changeExerciseLevel,
       skipRest,

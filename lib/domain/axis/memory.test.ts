@@ -38,6 +38,7 @@ import {
   memoryForToday,
   openChangeThread,
   rememberAnswer,
+  rememberDiscomfort,
   rememberQuestion,
 } from './memory'
 
@@ -513,4 +514,10 @@ test('borrar todos los datos deja la memoria vacía', async () => {
   await repositories.axisMemory.clear(DAY)
   const after = await app(repositories).load()
   assert.deepEqual(after, emptyDayMemory(DAY, NOW))
+})
+
+test('una molestia contada al cambiar un ejercicio se apunta una vez por zona y día (D-095)', () => {
+  const memory = rememberDiscomfort(emptyDayMemory('2026-11-08'), 'rodilla', '2026-11-08T10:00:00.000Z')
+  assert.deepEqual(memory.discomforts, [{ zone: 'rodilla', at: '2026-11-08T10:00:00.000Z' }])
+  assert.equal(rememberDiscomfort(memory, 'rodilla'), memory)
 })

@@ -253,6 +253,22 @@ export function rememberQuestion(
   return touch({ ...memory, messages: [...memory.messages, message] }, now)
 }
 
+/** Una molestia se apunta una vez por zona y día (D-037). */
+function withDiscomfort(memory: AxisDayMemory, zone: string | null, now: string): AxisDayMemory['discomforts'] {
+  return zone !== null && !(memory.discomforts ?? []).some((item) => item.zone === zone)
+    ? [...(memory.discomforts ?? []), { zone, at: now }]
+    : memory.discomforts
+}
+
+/**
+ * Apunta una molestia contada fuera del chat: al cambiar un ejercicio por
+ * molestias y decir dónde (D-095). Al día siguiente AXIS pregunta cómo va.
+ */
+export function rememberDiscomfort(memory: AxisDayMemory, zone: string, now: string = nowIso()): AxisDayMemory {
+  const discomforts = withDiscomfort(memory, zone, now)
+  return discomforts === memory.discomforts ? memory : touch({ ...memory, discomforts }, now)
+}
+
 /** Lo que una respuesta puede dejar en la memoria además del propio mensaje. */
 export type AnswerOutcome = {
   intent: AxisIntent
@@ -294,12 +310,7 @@ export function rememberAnswer(
       ? [...memory.reportedLoads, { ...load, reportedAt: now, messageId: message.id }]
       : memory.reportedLoads
 
-  // Una molestia se apunta una vez por zona y día (D-037).
-  const zone = outcome.discomfort ?? null
-  const discomforts =
-    zone !== null && !(memory.discomforts ?? []).some((item) => item.zone === zone)
-      ? [...(memory.discomforts ?? []), { zone, at: now }]
-      : memory.discomforts
+  const discomforts = withDiscomfort(memory, outcome.discomfort ?? null, now)
 
   return touch(
     {

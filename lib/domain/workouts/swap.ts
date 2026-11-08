@@ -48,6 +48,28 @@ export type SwapFilter = {
   /** Los ejercicios que ya están en la sesión: no se repiten. */
   inSession?: readonly string[]
   disliked?: readonly string[]
+  /** Por molestias: dónde molesta, si lo dijo. Entonces nada que cargue esa zona. */
+  zone?: CareZone | null
+}
+
+/**
+ * Las zonas por las que preguntar «¿dónde te molesta?»: las que carga el
+ * ejercicio. Vacío si no se sabe; entonces no se pregunta.
+ */
+export function discomfortZonesOf(exercise: Pick<Exercise, 'id'>): readonly CareZone[] {
+  return jointsOf(exercise.id)
+}
+
+/** La zona como la apunta la memoria del día (D-037): «rodilla», «espalda», «muñeca». */
+export const DISCOMFORT_MEMORY_ZONE: Record<CareZone, string> = {
+  rodilla: 'rodilla',
+  tobillo: 'tobillo',
+  cadera: 'cadera',
+  espalda_baja: 'espalda',
+  hombro: 'hombro',
+  codo: 'codo',
+  muneca: 'muñeca',
+  cuello: 'cuello',
 }
 
 /**
@@ -75,7 +97,7 @@ function sharedJoints(candidate: Exercise, exercise: Exercise): number {
   return jointsOf(candidate.id).filter((joint) => joints.includes(joint)).length
 }
 
-function fitsReason(candidate: Exercise, exercise: Exercise, reason: SwapReason): boolean {
+function fitsReason(candidate: Exercise, exercise: Exercise, reason: SwapReason, zone: CareZone | null): boolean {
   const sameFamily = exercise.family !== undefined && candidate.family === exercise.family
   switch (reason) {
     case 'sin_material': {
@@ -86,8 +108,10 @@ function fitsReason(candidate: Exercise, exercise: Exercise, reason: SwapReason)
       return !candidate.equipment.some((item) => missing.includes(item))
     }
     case 'molestia':
-      // Otra variante del mismo movimiento suele molestar igual. El resto, si
-      // carga menos las mismas articulaciones o es más suave.
+      // Otra variante del mismo movimiento suele molestar igual. Si dijo dónde,
+      // nada que cargue esa zona; si no, lo que carga menos las mismas
+      // articulaciones o es más suave.
+      if (zone) return !sameFamily && !loadsCareZone(candidate.id, [zone])
       return (
         !sameFamily &&
         (sharedJoints(candidate, exercise) < jointsOf(exercise.id).length || candidate.difficulty < exercise.difficulty)
@@ -126,12 +150,13 @@ export function swapOptions(exercise: Exercise, reason: SwapReason, filter: Swap
         isAvailable(candidate, filter.equipment) &&
         !loadsCareZone(candidate.id, careZones) &&
         samePurpose(candidate, exercise, wide) &&
-        fitsReason(candidate, exercise, reason),
+        fitsReason(candidate, exercise, reason, filter.zone ?? null),
     )
   // Primero el mismo patrón; si no da nada, el patrón hermano. Por molestias no
-  // se amplía: el hermano suele cargar lo mismo (una zancada, la rodilla de la sentadilla).
+  // se amplía sin saber la zona: el hermano suele cargar lo mismo (una zancada,
+  // la rodilla de la sentadilla). Sabiéndola, ya se descarta lo que la carga.
   let candidates = pick(false)
-  if (candidates.length === 0 && reason !== 'molestia') candidates = pick(true)
+  if (candidates.length === 0 && (reason !== 'molestia' || filter.zone)) candidates = pick(true)
 
   const rank = (candidate: Exercise): number[] => [
     byLevel && candidate.family === exercise.family ? 0 : 1,

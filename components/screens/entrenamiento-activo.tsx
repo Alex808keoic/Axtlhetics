@@ -50,7 +50,9 @@ export function EntrenamientoActivo() {
     skipExercise,
     levelOptions,
     changeExerciseLevel,
-    swapOptions,
+    canSwap,
+    swapZones,
+    swapOptionsFor,
     swapExercise,
     skipRest,
     extendRest,
@@ -162,14 +164,16 @@ export function EntrenamientoActivo() {
     )
   }
 
-  // Al empezar la primera serie ya no se puede cambiar: si quedó abierto, se cierra solo.
-  if (confirming === 'swap' && swapOptions) {
+  // Cambiar el ejercicio, con su porqué (D-095). Si deja de poderse (cronómetro en marcha), se cierra solo.
+  if (confirming === 'swap' && canSwap) {
     return (
       <ExerciseSwap
         exerciseName={entry.name}
-        options={swapOptions}
-        onSwap={(exerciseId, reason) => {
-          void swapExercise(exerciseId, reason)
+        doneSets={entry.sets.length}
+        zones={swapZones}
+        optionsFor={swapOptionsFor}
+        onSwap={(exerciseId, reason, zone) => {
+          void swapExercise(exerciseId, reason, zone)
           setConfirming(null)
         }}
         onSkip={() => {
@@ -262,6 +266,7 @@ export function EntrenamientoActivo() {
           onExtend={extendRest}
           onUndo={undoLastSet}
           reserve={reserveFor(activeWorkout, setReserve)}
+          onSwap={canSwap ? () => setConfirming('swap') : null}
         />
       ) : work ? (
         <WorkPanel
@@ -314,21 +319,16 @@ export function EntrenamientoActivo() {
           <LevelPicker
             options={levelOptions}
             currentId={entry.exerciseId}
-            recommendedId={activeWorkout.plan.exercises[activeWorkout.exerciseIndex]?.exerciseId ?? null}
+            // Por id y no por posición: un cambio a mitad de ejercicio (D-095) añade uno a la sesión.
+            recommendedId={
+              levelOptions.find((option) => activeWorkout.plan.exercises.some((planned) => planned.exerciseId === option.id))
+                ?.id ?? null
+            }
             onChange={(exerciseId) => void changeExerciseLevel(exerciseId)}
           />
 
-          {/* Cambiar el ejercicio, diciendo por qué (D-095). Como el nivel, antes de la primera serie. */}
-          {swapOptions && (
-            <button
-              type="button"
-              onClick={() => setConfirming('swap')}
-              className="ax-press mt-4 flex min-h-11 items-center gap-2 rounded-full bg-surface px-4 text-subhead font-medium text-foreground shadow-card"
-            >
-              <ArrowLeftRight className="h-4 w-4 text-primary" strokeWidth={2} />
-              Cambiar ejercicio
-            </button>
-          )}
+          {/* Cambiar el ejercicio, diciendo por qué (D-095). También con series hechas. */}
+          {canSwap && <SwapButton onClick={() => setConfirming('swap')} />}
 
           {/* Carga y repeticiones. Sin pesa no hay kilos que poner: solo repeticiones o segundos. */}
           <div className={cn('mt-6 grid gap-3', takesWeight(entry) ? 'grid-cols-2' : 'grid-cols-1')}>
@@ -542,6 +542,7 @@ function RestPanel({
   onExtend,
   onUndo,
   reserve,
+  onSwap,
 }: {
   rest: RestState
   entry: ActiveExerciseEntry
@@ -551,6 +552,8 @@ function RestPanel({
   onExtend: () => void
   onUndo: () => void
   reserve: ReserveQuestion | null
+  /** Cambiar el ejercicio que viene (D-095), si se puede. */
+  onSwap: (() => void) | null
 }) {
   const next = [
     `Serie ${setNumber} de ${entry.targetSets}`,
@@ -564,6 +567,11 @@ function RestPanel({
     <RestTimer rest={rest} nextName={entry.name} nextDetail={next} onSkip={onSkip} onExtend={onExtend}>
       {reserve && <ReservePicker question={reserve} />}
       {canUndo && <UndoButton onUndo={onUndo} />}
+      {onSwap && (
+        <div className="mt-2 flex justify-center">
+          <SwapButton onClick={onSwap} />
+        </div>
+      )}
     </RestTimer>
   )
 }
@@ -687,5 +695,19 @@ function Stat({ value, label }: { value: string; label: string }) {
         {label}
       </p>
     </div>
+  )
+}
+
+/** «Cambiar ejercicio» (D-095): secundario, sin competir con «Completar serie». */
+function SwapButton({ onClick }: { onClick: () => void }) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className="ax-press mt-4 flex min-h-11 items-center gap-2 rounded-full bg-surface px-4 text-subhead font-medium text-foreground shadow-card"
+    >
+      <ArrowLeftRight className="h-4 w-4 text-primary" strokeWidth={2} />
+      Cambiar ejercicio
+    </button>
   )
 }

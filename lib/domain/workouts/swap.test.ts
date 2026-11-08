@@ -9,7 +9,9 @@ import { findExercise } from './catalog'
 import { availableEquipment, NO_EQUIPMENT } from './equipment'
 import { jointsOf } from './joints'
 import { patternOf } from './patterns'
-import { describeEquipmentNeeded, SWAP_REASONS, swapOptions } from './swap'
+import type { AxisProposal } from '../axis/types'
+import { canChangeLevel, canSwapExercise, completeSet, startWorkout, swapExercise, toWorkoutSession } from './active-workout'
+import { describeEquipmentNeeded, discomfortZonesOf, SWAP_REASONS, swapOptions } from './swap'
 import type { Equipment, Exercise } from './types'
 
 const exercise = (id: string) => findExercise(id) as Exercise
@@ -85,4 +87,63 @@ test('cada motivo tiene su texto y el material se describe', () => {
   assert.equal(SWAP_REASONS.length, 6)
   assert.equal(describeEquipmentNeeded(exercise('flexiones')), 'Sin material')
   assert.equal(describeEquipmentNeeded(exercise('press-banca-mancuernas')), 'Con banco y dos pesas')
+})
+
+test('por molestias con la zona dicha: nada que la cargue, y puede buscar en el patrón hermano', () => {
+  const squat = exercise('sentadilla')
+  assert.ok(discomfortZonesOf(squat).includes('rodilla'))
+  const options = swapOptions(exercise('press-suelo-mancuernas'), 'molestia', { equipment: FULL, zone: 'muneca' })
+  for (const option of options) assert.ok(!jointsOf(option.id).includes('muneca'), option.id)
+  for (const option of swapOptions(squat, 'molestia', { equipment: FULL, zone: 'rodilla' })) {
+    assert.ok(!jointsOf(option.id).includes('rodilla'), option.id)
+  }
+})
+
+function proposalWith(exerciseId: string): AxisProposal {
+  const item = exercise(exerciseId)
+  return {
+    id: 'p1',
+    type: 'TRAINING',
+    headline: 'Fuerza',
+    reason: '',
+    factors: [],
+    session: {
+      focus: 'tren_superior',
+      title: 'Fuerza · Tren superior',
+      intensity: 'moderada',
+      estimatedMinutes: 30,
+      muscleGroups: ['pecho'],
+      exercises: [
+        { exerciseId: item.id, name: item.name, sets: 4, reps: 10, isTimed: false, suggestedWeightKg: null, restSeconds: 75, unilateral: false, tempo: null, imageUrl: null },
+        { exerciseId: 'plancha', name: 'Plancha', sets: 3, reps: 30, isTimed: true, suggestedWeightKg: null, restSeconds: 45, unilateral: false, tempo: null, imageUrl: null },
+      ],
+    },
+  } as unknown as AxisProposal
+}
+
+test('sin series hechas, cambiar sustituye el ejercicio y apunta el motivo', () => {
+  const workout = startWorkout(proposalWith('flexiones'))!
+  const changed = swapExercise(workout, { exercise: exercise('flexiones-rodillas'), sets: 3, reps: 8, weightKg: null, loads: [], note: 'más fácil' })
+  assert.equal(changed.entries.length, 2)
+  assert.equal(changed.entries[0].exerciseId, 'flexiones-rodillas')
+  assert.equal(changed.modifications.at(-1)?.detail, 'Flexiones → Flexiones con rodillas (más fácil).')
+})
+
+test('a mitad de ejercicio: lo hecho se queda, y el nuevo entra detrás con las series que faltan', () => {
+  const started = completeSet(completeSet(startWorkout(proposalWith('flexiones'))!))
+  assert.equal(canSwapExercise(started), true)
+  assert.equal(canChangeLevel(started), false)
+
+  const changed = swapExercise(started, { exercise: exercise('flexiones-rodillas'), sets: 3, reps: 8, weightKg: null, loads: [], note: 'por molestias' })
+  assert.deepEqual(changed.entries.map((entry) => entry.exerciseId), ['flexiones', 'flexiones-rodillas', 'plancha'])
+  assert.equal(changed.exerciseIndex, 1)
+  assert.equal(changed.entries[0].sets.length, 2)
+  assert.equal(changed.entries[0].targetSets, 4, 'el objetivo no cambia: no cuenta como completo')
+  assert.equal(changed.entries[1].targetSets, 2)
+  assert.equal(changed.entries[1].reps, 8)
+  assert.ok(changed.rest, 'el descanso sigue')
+  assert.equal(changed.modifications.at(-1)?.detail, 'Flexiones → Flexiones con rodillas tras 2 series, por molestias.')
+
+  const session = toWorkoutSession(completeSet(completeSet({ ...changed, rest: null })), { status: 'completed' })
+  assert.deepEqual(session.exercises.map((item) => [item.exerciseId, item.sets.length]), [['flexiones', 2], ['flexiones-rodillas', 2]])
 })
