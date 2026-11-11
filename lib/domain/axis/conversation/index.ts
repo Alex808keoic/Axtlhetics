@@ -212,7 +212,9 @@ export function createAxisConversation(
     const preference = local.intent === 'preference'
     // El escáner se reconoce antes que `intent` (D-023); desde D-070 va a la IA con su resumen.
     const scan = local.intent === 'scan'
-    const worthIt = benefitsFromAi(local.intent) && (benefitsFromAi(intent) || negotiated || social || preference || scan) && !noData
+    // Lo general (D-097) se reconoce antes que `intent`, que lo leería como otra cosa: solo lo contesta la IA.
+    const general = local.intent === 'general'
+    const worthIt = benefitsFromAi(local.intent) && (benefitsFromAi(intent) || negotiated || social || preference || scan || general) && !noData
 
     if (!worthIt || !(await ai.isAvailable())) {
       return {

@@ -2871,6 +2871,20 @@ Como siempre (D-030), el usuario puede pedir entrenar igual: el descanso trae se
 
 ---
 
+## D-097 — Las preguntas generales las contesta la IA
+
+**Fecha:** 2026-11-11 · **Estado:** aprobada e implementada · Pedido por Alex: «a veces le pregunto cosas básicas y me responde diciendo otras cosas» (le pasó lo que había comido —calorías, proteínas…— preguntando qué mejorar y AXIS le contestó con su recuperación) y «si no sabe una respuesta, que la responda la IA». **Amplía** D-042/D-094 (la conversación libre) y D-028.
+
+- **El fallo:** el motor reconoce intenciones por palabras sueltas y, con una pregunta que no es suya, no dice que no la sabe: contesta otra. «Proteína» u «hoy» llevaban a la recuperación o a la sesión de hoy; «¿es malo entrenar con agujetas?», a la sesión; «¿qué estiramientos hago después de correr?», a «¿te refieres a…?». La IA solo redactaba esa respuesta equivocada.
+- **Nueva intención `general`** (`conversation/general.ts`, `detectGeneral`), reconocida antes que cualquier otra (también en modo cambio), después de la crisis, la charla, lo médico y lo ajeno:
+  - **Alimentación**, siempre: comer, comidas, calorías, proteínas, hidratos, grasas, dieta, suplementos, creatina… (el agua sigue en Recuperación).
+  - **Conocimiento general** de entrenamiento, recuperación o deporte («¿es malo…?», «¿cómo mejoro / gano…?», «¿cuánto tengo que…?», «antes/después de entrenar», estiramientos, masa muscular), salvo que hable de su plan (hoy, mañana, sesión, semana, toca…): eso sigue en el motor.
+- **La contesta la IA con su propio prompt** (`generalSystemPrompt`): contesta exactamente a lo preguntado; si le pasa lo que ha comido, lo analiza contra sus objetivos de comida (`briefing.memory.nutrition`) y dice qué cambiaría en concreto; respuesta larga (como las explicaciones). Sin la respuesta del motor delante.
+- **Las puertas no cambian:** cifras solo las que ha escrito él o están en sus datos (las nuevas se descartan); nada del usuario que no esté; lo médico sigue en el determinista. Menor de 18: nunca comer menos, saltarse comidas ni dietas; suplementos, con un médico o nutricionista.
+- **Sin IA** (o si su respuesta no pasa las puertas) ya no se contesta otra cosa: AXIS dice que ahora no puede contestarla bien y que lo pruebe en un momento.
+
+---
+
 ## Decisiones pendientes
 
 Nada de lo que sigue debe inventarse ni resolverse sin aprobación explícita de Alex.

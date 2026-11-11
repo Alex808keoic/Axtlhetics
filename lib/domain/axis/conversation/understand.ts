@@ -18,6 +18,7 @@ import { NEGOTIATION_VOCABULARY } from './negotiation'
 import { REORGANIZATION_VOCABULARY } from './reorganization'
 import { SCAN_VOCABULARY } from './scan-answer'
 import { PREFERENCE_VOCABULARY } from './preferences'
+import { GENERAL_VOCABULARY } from './general'
 import { buildVocabulary, correctSpelling, wordsOf, type SpellingVocabulary } from './spelling'
 
 /** Lo que AXIS reconoce, sin depender del usuario. */
@@ -28,6 +29,7 @@ export const AXIS_WORDS: readonly string[] = wordsOf([
   ...ASSESSMENT_VOCABULARY,
   ...SCAN_VOCABULARY,
   ...PREFERENCE_VOCABULARY,
+  ...GENERAL_VOCABULARY,
   ...FOCUS_TERMS.flatMap((entry) => entry.terms),
   ...ACTIVITY_MENTION_TERMS,
   ...EFFORT_TERMS,

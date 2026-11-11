@@ -150,6 +150,39 @@ export function chatSystemPrompt(): string {
 }
 
 /**
+ * Las preguntas generales (D-097): alimentación y conocimiento de entrenamiento,
+ * recuperación o deporte que el motor no sabe. El modelo contesta de verdad,
+ * desarrollado y con lo que sabe del usuario. Las puertas de `checkModelText`
+ * siguen: solo cifras que haya escrito él o estén en `briefing`.
+ */
+export function generalSystemPrompt(): string {
+  const length = AXIS_PERSONALITY.longLimits
+  return [
+    AXIS_SYSTEM_PROMPT,
+    '',
+    'AHORA TE HACE UNA PREGUNTA GENERAL.',
+    'El usuario te pregunta algo que no es su sesión de hoy ni un cambio: alimentación, sueño, recuperación, cómo mejorar algo, si algo es bueno o malo, qué hacer antes o después de entrenar, suplementos. O te cuenta lo que ha comido y te pide opinión. Recibes `question` (lo que acaba de escribir), `briefing` (sus datos: edad, objetivos, deportes, su semana y, en `briefing.memory.nutrition`, lo que lleva comido hoy y sus objetivos de calorías y proteína, si los tiene) y la conversación de hoy.',
+    'Contesta EXACTAMENTE a lo que pregunta, como un entrenador personal que sabe de nutrición deportiva y le conoce. No le hables de su sesión de hoy, su recuperación ni su semana salvo que sirva para responder.',
+    'Si te pasa lo que ha comido (calorías, proteínas, hidratos, grasas o platos), analízalo: qué está bien, qué le falta o le sobra para sus objetivos y qué cambiaría en concreto (qué alimentos añadir, en qué comida, qué cambiar). Compáralo con sus objetivos de `briefing.memory.nutrition` si están. Usa sus cifras para razonar.',
+    'Cifras: puedes usar las que ha escrito él y las de `briefing`, escritas con dígitos. No des cifras nuevas (ni gramos, ni calorías, ni horas, ni porcentajes): explica con palabras («algo más de proteína en el desayuno», «una ración de fruta más»). Una cifra que no esté se descarta.',
+    'Es joven y está creciendo si su edad es menor de 18: nunca le propongas comer menos de lo que necesita, saltarse comidas ni dietas restrictivas. Con suplementos, a esa edad lo prudente es comida real y, si quiere tomarlos, que lo hable con un médico o un nutricionista.',
+    'Si para responder bien hace falta un profesional (un dolor, una lesión, una dieta especial), dilo.',
+    'No propongas cambios de sesión: eso se pide en el chat y lo decido aparte.',
+    'Empieza por la respuesta, sin preámbulos. Sin emojis ni signos de exclamación. No empieces por «Genial», «Perfecto», «Claro» ni «Por supuesto».',
+    `Responde en ${length.targetSentences}. Nunca más de ${length.maxSentences}.`,
+    NAME_RULE,
+    'No afirmes nada del usuario que no esté en `briefing`, en lo que ha escrito o en la conversación.',
+    PARAGRAPHS_RULE,
+    MEMORY_RULE,
+    SERIOUS_RULE,
+    DATA_RULE,
+    FOLLOW_UPS_RULE,
+    'Devuelve SOLO un objeto JSON con esta forma:',
+    '{"message": "tu respuesta", "followUps": ["pregunta 1", "pregunta 2"], "action": null}',
+  ].join('\n')
+}
+
+/**
  * Lo que vuelve de la charla, listo para enseñar: el nombre en su sitio y sin
  * exclamaciones, que la personalidad no usa (un «¡Hola!» no merece descartar
  * una buena respuesta).
@@ -296,6 +329,8 @@ export const AI_WORTHY_INTENTS: readonly AxisIntent[] = [
   'exercise',
   // La charla (D-042): un saludo de plantilla es justo lo que suena a máquina.
   'social',
+  // Lo general (D-097): alimentación y conocimiento que el motor no sabe. Solo lo contesta la IA.
+  'general',
   // Desde D-070 la IA es la voz de AXIS: también lo que toca hoy, los cambios ya hechos y lo que le cuentas.
   'today',
   'missed_yesterday',
@@ -513,10 +548,12 @@ export function createAiConversation(
       const domain = resolveDomain(question, briefing, memory)
       const sentBriefing = memory?.aiMemory ? { ...toAiBriefing(briefing), memory: memory.aiMemory } : toAiBriefing(briefing)
 
-      const chat = domain.intent === 'social'
+      const general = domain.intent === 'general'
+      // La pregunta general (D-097) es charla con más fondo: tampoco lleva la respuesta del motor.
+      const chat = domain.intent === 'social' || general
       const name = briefing.profile?.name?.trim() || null
       const response = await transport.send({
-        system: chat ? chatSystemPrompt() : aiSystemPrompt(domain.intent),
+        system: general ? generalSystemPrompt() : chat ? chatSystemPrompt() : aiSystemPrompt(domain.intent),
         question,
         briefing: sentBriefing,
         domain: {

@@ -37,6 +37,7 @@ import { matchName } from '../actions'
 import { answerAssessment, asksAboutAssessment } from './assessment-answer'
 import { answerScan, asksAboutScan } from './scan-answer'
 import { CRISIS_TEXT, detectCrisis } from './crisis'
+import { detectGeneral, GENERAL_FALLBACK_TEXT } from './general'
 import { answerSocial, detectSocial } from './social'
 import { understandMessage } from './understand'
 import { detectDiscomfortZone, detectPreference, type ExercisePreference } from './preferences'
@@ -114,6 +115,13 @@ export function answerFromBriefing(
    * ajeno siguen yendo antes.
    */
   if (match.intent !== 'medical' && match.intent !== 'out_of_scope') {
+    /*
+     * Lo general (D-097) antes que cualquier intención: «he comido 95 g de
+     * proteína, ¿qué mejoro?» lleva palabras de otras intenciones y el motor
+     * contestaría otra cosa. Lo contesta la IA; sin ella, se dice.
+     */
+    if (detectGeneral(question)) return { text: GENERAL_FALLBACK_TEXT, intent: 'general', unknown: true }
+
     // «No me gustan las zancadas»: se apunta antes de leerlo como un cambio (D-037).
     const preference = detectPreference(question, briefing.equipment)
     if (preference) return answerPreference(preference)
@@ -262,6 +270,7 @@ export function answerFromBriefing(
     // Las preferencias (D-037) y la charla (D-042) se reconocen antes de llegar aquí.
     case 'preference':
     case 'social':
+    case 'general':
     case 'unknown':
       return answerUnknown()
   }

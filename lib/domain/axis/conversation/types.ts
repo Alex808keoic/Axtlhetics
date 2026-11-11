@@ -45,6 +45,8 @@ export type AxisIntent =
   | 'preference'
   /** Saludos, «gracias», «¿qué tal?», despedidas (D-042): se responden como en una conversación. */
   | 'social'
+  /** Pregunta general (D-097): alimentación o conocimiento de entrenamiento que el motor no sabe. La contesta la IA. */
+  | 'general'
   | 'unknown'
 
 export type AxisMessageRole = 'user' | 'axis'
