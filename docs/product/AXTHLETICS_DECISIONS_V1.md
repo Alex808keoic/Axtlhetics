@@ -2907,6 +2907,15 @@ Como siempre (D-030), el usuario puede pedir entrenar igual: el descanso trae se
 - **El plan de la semana.** Nueva intención `week_plan` («plan para la semana que viene», «próxima semana», «qué me queda esta semana»…), antes que el resumen de la semana: AXIS dice día a día lo que prevé —la que viene o lo que queda de esta—, con el deporte, cuántos entrenos son y que es una previsión que ajusta cada día. Sale del mismo motor (`projectNextWeek`, que sigue la proyección de D-048 una semana más) y viaja en `briefing.weekPlan` sin fechas, para que sus cifras no respalden días inventados por la IA. «¿Qué tal voy esta semana?» sigue siendo el resumen.
 ---
 
+## D-100 — Revisión de la app en el navegador: avisos y titulares del descanso
+
+**Fecha:** 2026-11-11 · **Estado:** aprobada e implementada · Pedido por Alex («entra en Chrome y míralo»): revisión de Inicio, Entrenamiento, Recuperación, Historial y Perfil con sus datos reales, sin cambiar nada; sin errores en la consola. **Enmienda** D-044.
+
+- **Los avisos de entreno iban a días de descanso.** Salían de los días disponibles del perfil (lunes, miércoles, viernes y domingo), pero lunes y miércoles hay baloncesto y AXIS descansa (D-096): el aviso «toca entrenar» contradecía a AXIS. Ahora van a los días en que AXIS prevé entreno según la semana que viene (`trainingWeekdays` sobre `projectNextWeek`, expuesto por el store como `reminderWeekdays`); sin ningún entreno previsto, los disponibles. Con los avisos activos, el horario del servidor se actualiza solo cuando cambian.
+- **Un mismo día de descanso con tres titulares.** Inicio decía «Hoy toca descansar.» con «Mañana llegarás mejor» (que suena a que vienes cansado, y era un día de baloncesto) y Entrenamiento «Hoy toca recuperar». Ahora Entrenamiento usa el mismo titular de AXIS que Inicio, la tira de la semana dice «Descanso» y el subtítulo de Inicio es «Hoy no toca entrenar: el descanso también construye.»
+- Vistos y correctos: la semana prevista (viernes y domingo con baloncesto lunes, miércoles, jueves y sábado), la evaluación inicial (2 de 4), la copia en la nube del Ecosistema (D-081) y el aviso de visto bueno médico (D-058), que se mantiene hasta marcarlo en Perfil.
+---
+
 ## Decisiones pendientes
 
 Nada de lo que sigue debe inventarse ni resolverse sin aprobación explícita de Alex.

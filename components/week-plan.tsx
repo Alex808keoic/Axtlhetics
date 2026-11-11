@@ -67,7 +67,7 @@ export function WeekPlan({ days, className }: { days: readonly WeekDayView[]; cl
           <p className="text-caption font-medium text-muted-foreground">
             {WEEKDAY_LABELS[weekdayOfKey(selected.dayKey)]} · {statusLabel(selected)}
           </p>
-          <p className="mt-1 text-body font-semibold">{selected.title ?? (selected.isToday ? 'Hoy toca recuperar' : 'Descanso')}</p>
+          <p className="mt-1 text-body font-semibold">{selected.title ?? 'Descanso'}</p>
           {(selected.hard || selected.activities.length > 0) && (
             <div className="mt-2 flex flex-wrap gap-1.5">
               {selected.hard && (

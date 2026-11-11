@@ -31,13 +31,14 @@ const PROBLEMS: Record<Exclude<EnableResult, 'ok'>, string> = {
 type Status = 'loading' | 'off' | 'on' | 'unsupported'
 
 /**
- * Avisos de entreno (D-044): una notificación los días que el usuario marcó
- * para entrenar, a la hora que elija. Los días salen del perfil; si cambian,
- * el horario del servidor se pone al día solo.
+ * Avisos de entreno (D-044): una notificación los días en que AXIS prevé
+ * entreno (D-100: no todos los disponibles, que con deporte suelen ser de
+ * descanso), a la hora que elija. Si cambian, el horario del servidor se pone
+ * al día solo.
  */
 export function TrainingNotifications() {
-  const { profile } = useAxtlhetics()
-  const weekdays = profile?.availableWeekdays ?? []
+  // Los días en que AXIS prevé entreno, no todos los disponibles (D-100).
+  const { reminderWeekdays: weekdays } = useAxtlhetics()
   const weekdaysKey = weekdays.join(',')
   const [status, setStatus] = useState<Status>('loading')
   const [hour, setHour] = useState(17)
@@ -53,7 +54,7 @@ export function TrainingNotifications() {
     void currentSubscription().then((subscription) => setStatus(subscription ? 'on' : 'off'))
   }, [])
 
-  // Con los avisos activos, los días de entreno del perfil mandan.
+  // Con los avisos activos, los días previstos mandan: si cambian, el servidor se pone al día.
   useEffect(() => {
     if (status === 'on') void syncPush({ weekdays, hour: readPushHour() })
     // eslint-disable-next-line react-hooks/exhaustive-deps

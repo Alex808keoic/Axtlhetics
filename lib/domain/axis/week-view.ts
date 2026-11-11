@@ -159,3 +159,15 @@ function projectDays(context: AxisContext, selected: AxisProposal | null, count:
   }
   return days
 }
+
+/**
+ * Los días de la semana (lunes = 0) en que AXIS prevé entreno, según la semana
+ * que viene (D-100). Es lo que deben seguir los avisos de entreno: los días
+ * disponibles no bastan, porque un día con deporte suele ser de descanso
+ * (D-096) y avisar «toca entrenar» ese día contradice a AXIS. Sin ningún
+ * entreno previsto, los días disponibles.
+ */
+export function trainingWeekdays(nextWeek: readonly WeekDayView[], available: readonly number[]): number[] {
+  const planned = nextWeek.filter((day) => day.status === 'planned').map((day) => weekdayOfKey(day.dayKey))
+  return planned.length > 0 ? [...new Set(planned)].sort((a, b) => a - b) : [...available]
+}

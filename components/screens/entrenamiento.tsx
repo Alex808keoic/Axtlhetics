@@ -92,7 +92,8 @@ export function EntrenamientoScreen({
               )}
             </div>
             <h2 className="mt-1.5 text-title font-extrabold text-balance">
-              {session ? session.title : 'Hoy toca recuperar'}
+              {/* Sin sesión, el mismo titular que en Inicio («Hoy toca descansar.»), no otro (D-100). */}
+              {session ? session.title : (proposal?.headline ?? 'Hoy toca recuperar')}
             </h2>
             {/* D-022: el entrenamiento de hoy se movió a mañana. Solo contexto. */}
             {movedToTomorrow && !session && (

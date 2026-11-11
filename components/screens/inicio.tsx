@@ -44,7 +44,7 @@ const DAY_TITLES: Record<AxisRecommendationType, { title: string; subtitle: stri
   },
   REST: {
     title: 'Día de descanso.',
-    subtitle: 'Hoy no toca entrenar. Mañana llegarás mejor.',
+    subtitle: 'Hoy no toca entrenar: el descanso también construye.',
   },
 }
 

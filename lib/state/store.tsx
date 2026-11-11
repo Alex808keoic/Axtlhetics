@@ -46,7 +46,7 @@ import {
   type AxisActionProposal,
   type AxisActionStatus,
 } from '../domain/axis/actions'
-import { projectWeek, type WeekDayView } from '../domain/axis/week-view'
+import { projectNextWeek, projectWeek, trainingWeekdays, type WeekDayView } from '../domain/axis/week-view'
 import { buildAxisContext, gearToday } from '../domain/axis/context'
 import { availableEquipment, equipmentOf, loadsFor } from '../domain/workouts/equipment'
 import { levelOptions } from '../domain/workouts/levels'
@@ -217,6 +217,8 @@ type AxtlheticsStore = {
   weeklyActivity: { completedDays: boolean[]; todayIndex: number }
   /** La semana de lunes a domingo: lo hecho, hoy y lo previsto (D-048). */
   weekView: WeekDayView[]
+  /** Días (lunes = 0) en que AXIS prevé entreno: los de los avisos (D-100). */
+  reminderWeekdays: number[]
   /** En un día fuerte, cambia a la misma sesión a intensidad normal (D-048). */
   chooseNormalVersion(): Promise<void>
   historyStats(range: HistoryRange): HistoryStats
@@ -786,6 +788,15 @@ export function AxtlheticsProvider({ children }: { children: ReactNode }) {
   const weekView = useMemo(
     () => (axisContext ? projectWeek(axisContext, proposal, { movedTo: memory.movedTo ?? null }) : []),
     [axisContext, proposal, memory.movedTo],
+  )
+
+  // Los avisos de entreno siguen los días en que AXIS prevé entreno, no solo los disponibles (D-100).
+  const reminderWeekdays = useMemo(
+    () =>
+      axisContext
+        ? trainingWeekdays(projectNextWeek(axisContext, proposal, { movedTo: memory.movedTo ?? null }), profile?.availableWeekdays ?? [])
+        : (profile?.availableWeekdays ?? []),
+    [axisContext, proposal, memory.movedTo, profile?.availableWeekdays],
   )
 
   const historyStats = useCallback(
@@ -1755,6 +1766,7 @@ export function AxtlheticsProvider({ children }: { children: ReactNode }) {
       lastCompleted,
       weeklyActivity,
       weekView,
+      reminderWeekdays,
       chooseNormalVersion,
       historyStats,
       saveProfile,
@@ -1844,6 +1856,7 @@ export function AxtlheticsProvider({ children }: { children: ReactNode }) {
       lastCompleted,
       weeklyActivity,
       weekView,
+      reminderWeekdays,
       chooseNormalVersion,
       historyStats,
       saveProfile,
