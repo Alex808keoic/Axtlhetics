@@ -239,3 +239,37 @@ test('D-096: el peso apuntado manda sobre el del perfil para la complexión', ()
   const ctx = context({ weightKg: 52, recentSessions: [] })
   assert.equal(deriveFacts(ctx).bodyBuild?.band, 'normal')
 })
+
+// ---------------------------------------------------------------------------
+// D-098: entre dos días de deporte se descansa si la semana tiene sitio
+// ---------------------------------------------------------------------------
+
+function football(weekday: number): ScheduledActivity {
+  return { id: `futbol-${weekday}`, name: 'Fútbol', weekday: weekday as ScheduledActivity['weekday'], date: null, startMinute: 1080, endMinute: 1200, intensity: 'alta', loadsMuscleGroups: ['piernas'], createdAt: '2026-11-01T10:00:00.000Z', updatedAt: '2026-11-01T10:00:00.000Z' }
+}
+
+const WEDNESDAY = new Date(2026, 10, 4, 9, 0)
+
+function wednesday(sessions: WorkoutSession[], available: UserProfile['availableWeekdays'] = [0, 1, 2, 3, 4, 5, 6]) {
+  return decide(
+    buildAxisContext({
+      profile: profile({ age: 15, experience: 'intermedio', goals: ['hipertrofia'], availableWeekdays: available, weightKg: 68, heightCm: 175 }),
+      recoveryInputs: recovery('2026-11-04'),
+      recentSessions: sessions,
+      activities: [football(1), football(3)],
+      now: WEDNESDAY,
+    }),
+  ).primary
+}
+
+test('fútbol martes y jueves: el miércoles se descansa y el hueco queda para un día en que haya pierna', () => {
+  const primary = wednesday([session('2026-11-02')])
+  assert.equal(primary.rule, 'between_sports')
+  assert.equal(primary.type, 'REST')
+  assert.match(primary.reason, /Ayer tuviste fútbol y mañana tienes fútbol/)
+})
+
+test('sin días libres después para lo pendiente, el miércoles se entrena', () => {
+  // Solo lunes, miércoles y viernes: no hay sitio para guardarlo.
+  assert.notEqual(wednesday([session('2026-11-02')], [0, 2, 4]).rule, 'between_sports')
+})

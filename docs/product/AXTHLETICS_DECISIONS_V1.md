@@ -2885,6 +2885,19 @@ Como siempre (D-030), el usuario puede pedir entrenar igual: el descanso trae se
 
 ---
 
+## D-098 — Revisión de los entrenos: progresión, principales, piernas y tiempo
+
+**Fecha:** 2026-11-11 · **Estado:** aprobada e implementada · Pedido por Alex: «mira cómo propone AXTHLETICS ahora los entrenos; si ves algo erróneo, corrígelo y coméntamelo». Se simularon 4 semanas con tres perfiles (15 años con fútbol martes y jueves; adulto principiante sin material; mujer avanzada con kettlebells y rodilla a cuidar), completando cada sesión y contestando «1–2» a la reserva. **Enmienda** D-056, D-057, D-050, D-051 y amplía D-096.
+
+- **Los ejercicios no progresaban** (D-056). Con la reserva contestada, la siguiente sesión eran «las repeticiones hasta el fallo menos la reserva buscada»; contestar «1–2», que es justo lo que se busca, devolvía lo mismo: flexiones 3×10 y sentadilla 3×15 cuatro semanas seguidas. Ahora, si se hicieron todas las series dejando al menos la reserva buscada, con el mismo peso **se sube como mínimo una repetición** (`MIN_OVERLOAD_REPS`). Al fallo no se fuerza; con «3 o más» se sigue subiendo más.
+- **Una sesión ligera fijaba los principales del bloque** (D-057). Si la primera sesión de una zona en el bloque era ligera (víspera de partido), sus variantes accesibles (flexiones inclinadas, superman) quedaban de principales cuatro semanas, también en los días normales y aunque hubiera remo con mancuerna. Ahora las ligeras no fijan principales; los fija el primer día normal.
+- **Con fútbol martes y jueves la pierna no llegaba nunca** (amplía D-096). Lunes y miércoles (víspera) y viernes (día después) no cargan piernas y gastaban las 3 sesiones; el fin de semana ya estaba lleno. Nueva regla `between_sports`, tras `sport_day_with_room`: un día sin deporte entre dos de deporte medio o alto se descansa si las sesiones pendientes caben en días libres más adelante. Resultado: lunes tren superior ligero, viernes tren superior, sábado tren inferior.
+- **Sin tiempo, todo a 2 series de golpe** (D-050). Si la sesión no cabía, todos los ejercicios bajaban a 2 series: con 44 minutos, un día fuerte de 5 series quedaba en 20 minutos. Ahora se quita una serie cada vez al ejercicio que más tiene, sin bajar de 2, hasta que cabe (44 min → 43 min con 5/5/4).
+- **Descansos raros** (D-051). El 15 % menos de descanso para mujeres daba 128 s o 51 s; ahora se redondea a 5 s (130 s, 50 s).
+- Vistos y **no cambiados** (por si se quieren revisar): los días ligeros bajan a variantes accesibles (D-008); «Cuido tu rodilla… si la molestia sigue, que la vea un profesional» se repite cada día en el motivo; «¿me ayudas con el plan de la semana que viene?» contesta con la semana actual.
+
+---
+
 ## Decisiones pendientes
 
 Nada de lo que sigue debe inventarse ni resolverse sin aprobación explícita de Alex.

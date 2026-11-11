@@ -14,7 +14,7 @@
 import { daysBetween, type DayKey } from '../shared/dates'
 import type { CompletedSet, Exercise, PerformedExercise, RepsInReserve, WorkoutSession } from './types'
 import { isMainExercise, metTarget } from './types'
-import { estimateOneRepMax, repsToFailure } from './strength'
+import { estimateOneRepMax, repsToFailure, RESERVE_REPS } from './strength'
 
 export type LastPerformance = {
   weightKg: number | null
@@ -38,7 +38,14 @@ export type LastPerformance = {
    * última y no la mejor porque llega con la fatiga de las anteriores, como
    * llegarán las series que se prescriban. `null` si no se contestó ninguna.
    */
-  capacity: { repsToFailure: number; oneRepMax: number | null; weightKg: number | null } | null
+  capacity: {
+    repsToFailure: number
+    oneRepMax: number | null
+    weightKg: number | null
+    /** Las repeticiones de esa serie y las que quedaban (D-056, enmienda de D-098): dicen si se cumplió lo buscado. */
+    reps?: number
+    reserveReps?: number
+  } | null
 }
 
 /** La sesión completada más reciente que tiene el ejercicio, y el ejercicio tal como se hizo en ella. */
@@ -112,7 +119,13 @@ function capacityOf(sets: readonly CompletedSet[]): LastPerformance['capacity'] 
   const answered = sets.filter((set) => set.completed && set.reserve !== undefined)
   const last = answered[answered.length - 1]
   if (!last) return null
-  return { repsToFailure: repsToFailure(last), oneRepMax: estimateOneRepMax(last), weightKg: last.weightKg }
+  return {
+    repsToFailure: repsToFailure(last),
+    oneRepMax: estimateOneRepMax(last),
+    weightKg: last.weightKg,
+    reps: last.reps,
+    reserveReps: last.reserve ? RESERVE_REPS[last.reserve] : 0,
+  }
 }
 
 function maxWeight(sets: readonly CompletedSet[]): number | null {

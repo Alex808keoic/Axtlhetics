@@ -237,7 +237,8 @@ export function restFor(exercise: Exercise, goal: TrainingGoal = DEFAULT_GOAL, s
   let rest = exercise.work.restSeconds
   if (minRest !== null) rest = Math.max(rest, minRest)
   if (maxRest !== null) rest = Math.min(rest, maxRest)
-  if (sex === 'mujer') rest = Math.max(FEMALE_MIN_REST_SECONDS, Math.round(rest * FEMALE_REST_FACTOR))
+  // Redondeado a 5 s (D-098): «2:08» en el cronómetro parece un error.
+  if (sex === 'mujer') rest = Math.max(FEMALE_MIN_REST_SECONDS, Math.round((rest * FEMALE_REST_FACTOR) / 5) * 5)
   return rest
 }
 
@@ -249,6 +250,9 @@ const MAX_EXERCISES = 6
 /** En acondicionamiento (D-047): rondas de 30 s más 30 s de descanso, unos 4 minutos; como mucho 6, unos 24 minutos de intervalos. */
 const CONDITIONING_MINUTES_PER_EXERCISE = 4
 const MAX_CONDITIONING_EXERCISES = 6
+
+/** Lo mínimo que sube un ejercicio hecho entero con la reserva buscada (D-098): una repetición, como un entrenador. */
+export const MIN_OVERLOAD_REPS = 1
 
 /** Cuánto sube cada progresión por repeticiones. */
 export const REP_PROGRESSION_STEP = 2
@@ -868,9 +872,17 @@ function fromCapacity(
 ): Omit<SuggestedWork, 'sets'> | null {
   const { loads, lastWeight, lastReps, baseReps, cap, step, reserve } = options
   const bounded = (reps: number) => clamp(reps, Math.max(1, lastReps - step), Math.min(cap, lastReps + 2 * step))
+  /*
+   * Sobrecarga progresiva (D-098): si la última vez se hicieron todas las
+   * series dejando al menos la reserva buscada, con el mismo peso se sube una
+   * repetición. Sin esto, contestar siempre «1–2» (que es justo lo que se busca)
+   * dejaba el ejercicio igual para siempre: la estimación devolvía lo mismo.
+   */
+  const onTarget = capacity.reps !== undefined && (capacity.reserveReps ?? 0) >= reserve
+  const atLeast = (reps: number) => (onTarget ? Math.max(reps, (capacity.reps ?? 0) + MIN_OVERLOAD_REPS) : reps)
 
   if (lastWeight === null) {
-    return { reps: bounded(capacity.repsToFailure - reserve), weightKg: null }
+    return { reps: bounded(atLeast(capacity.repsToFailure - reserve)), weightKg: null }
   }
   if (capacity.oneRepMax === null || loads.length === 0) return null
 
@@ -882,7 +894,9 @@ function fromCapacity(
   if (heavier !== null && at(heavier) >= Math.max(1, enough)) return { reps: Math.min(at(heavier), cap), weightKg: heavier }
 
   if (at(lastWeight) >= Math.max(1, Math.min(baseReps, lastReps) - step)) {
-    return { reps: bounded(at(lastWeight)), weightKg: lastWeight }
+    // Con el mismo peso solo si la serie medida fue con ese peso: si no, la estimación manda.
+    const sameWeight = capacity.weightKg === lastWeight
+    return { reps: bounded(sameWeight ? atLeast(at(lastWeight)) : at(lastWeight)), weightKg: lastWeight }
   }
 
   const lighter = loads.filter((kg) => kg < lastWeight).reverse()
@@ -1442,10 +1456,10 @@ export function buildSession(options: SessionBuildOptions): PlannedSession {
     if (roomier && hasAccessory(roomier)) return roomier
   }
 
-  // Con muy poco tiempo, antes que pasarse: dos series en vez de quitar un patrón
+  // Con muy poco tiempo, antes que pasarse: menos series (hasta dos) en vez de quitar un patrón
   // (D-073) y, si aún no cabe, dos ejercicios con dos series (D-050).
   if (session.estimatedMinutes > availableMinutes) {
-    const compacted = compact(session)
+    const compacted = compact(session, availableMinutes)
     if (compacted.estimatedMinutes <= availableMinutes) return compacted
   }
   const floor = Math.max(1, MIN_EXERCISES_WHEN_SHORT - extra)
@@ -1453,7 +1467,7 @@ export function buildSession(options: SessionBuildOptions): PlannedSession {
     count -= 1
     session = assemble(count)
   }
-  return session.estimatedMinutes > availableMinutes ? compact(session) : session
+  return session.estimatedMinutes > availableMinutes ? compact(session, availableMinutes) : session
 }
 
 /** Series de un compuesto por debajo de las que no se baja para hacer sitio a los accesorios (D-092). */
@@ -1485,9 +1499,23 @@ function makeRoom(session: PlannedSession, catalog: readonly Exercise[], availab
   return estimatedMinutes <= availableMinutes ? { ...session, exercises, estimatedMinutes } : null
 }
 
-/** La sesión con como mucho dos series por ejercicio de entrenamiento (D-050). */
-function compact(session: PlannedSession): PlannedSession {
-  const exercises = session.exercises.map((item) => (isMainExercise(item) ? { ...item, sets: Math.min(item.sets, MIN_SETS) } : item))
+/**
+ * La sesión con las series justas para caber (D-050, corregido en D-098): se
+ * quita una serie cada vez al ejercicio que más tiene (el último, si empatan),
+ * sin bajar de dos, hasta que cabe. Antes se bajaba todo a dos de golpe y un
+ * día fuerte de 5 series se quedaba en 2 con media sesión libre. Si ni con dos
+ * cabe, se queda en dos.
+ */
+function compact(session: PlannedSession, availableMinutes: number): PlannedSession {
+  let exercises = [...session.exercises]
+  while (estimateMinutes(exercises) > availableMinutes) {
+    let index = -1
+    exercises.forEach((item, at) => {
+      if (isMainExercise(item) && item.sets > MIN_SETS && (index < 0 || item.sets >= exercises[index].sets)) index = at
+    })
+    if (index < 0) break
+    exercises = exercises.map((item, at) => (at === index ? { ...item, sets: item.sets - 1 } : item))
+  }
   return { ...session, exercises, estimatedMinutes: estimateMinutes(exercises) }
 }
 

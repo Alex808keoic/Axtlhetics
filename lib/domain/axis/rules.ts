@@ -220,6 +220,38 @@ const sportDayWithRoom: Rule = {
 }
 
 /**
+ * Entre dos días de deporte exigente (D-098): ayer y mañana hay deporte de
+ * exigencia media o alta, hoy no, y las sesiones pendientes caben en días
+ * libres más adelante. Hoy se descansa. Un entreno aquí no puede cargar piernas
+ * por ninguno de los dos lados y gasta un hueco de la semana: con fútbol martes
+ * y jueves, lunes, miércoles y viernes eran tres sesiones de tren superior y la
+ * pierna no llegaba nunca.
+ */
+const betweenSports: Rule = {
+  id: 'between_sports',
+  evaluate(facts) {
+    if (facts.todayActivity) return null
+    const before = facts.yesterdayActivity
+    const after = facts.tomorrowActivity
+    if (!before || !after || before.intensity === 'baja' || after.intensity === 'baja') return null
+    const pending = facts.weeklySessionCap - facts.sessionsThisWeek
+    if (pending <= 0 || facts.freeTrainingDaysAhead < pending) return null
+    return {
+      type: 'REST',
+      rule: 'between_sports',
+      factors: [
+        {
+          key: 'scheduled_activity',
+          label: `${before.name} y ${after.name.toLowerCase()}`,
+          detail: `Ayer tuviste ${before.name.toLowerCase()} y mañana tienes ${after.name.toLowerCase()}: hoy descansas y guardo el entreno para un día libre de la semana, donde sí puedo trabajar piernas.`,
+          direction: 'limits',
+        },
+      ],
+    }
+  },
+}
+
+/**
  * El día después de un deporte exigente, con la fatiga alta o tras un día
  * doble (deporte y entreno): hoy se recupera. Una sesión de otra zona no quita
  * el cansancio general.
@@ -560,6 +592,7 @@ export const AXIS_RULES: readonly Rule[] = [
   activeStreak,
   weeklyCapReached,
   sportDayWithRoom,
+  betweenSports,
   afterDemandingSport,
   demandingActivityToday,
   demandingActivityTomorrow,

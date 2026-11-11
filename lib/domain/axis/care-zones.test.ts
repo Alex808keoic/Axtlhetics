@@ -93,7 +93,7 @@ test('sin zonas a cuidar, nada cambia', () => {
 
 test('con «mujer», descansos de fuerza un 15 % más cortos (mínimo 45 s) y los intervalos igual', () => {
   const flexiones = findExercise('flexiones')! // 90 s
-  assert.equal(restFor(flexiones, 'salud_general', 'mujer'), 77)
+  assert.equal(restFor(flexiones, 'salud_general', 'mujer'), 75) // 76,5 → redondeado a 5 s (D-098)
   assert.equal(restFor(flexiones, 'salud_general', 'hombre'), 90)
   assert.equal(restFor(flexiones, 'salud_general', null), 90)
   const gemelos = findExercise('elevacion-gemelos')! // 45 s

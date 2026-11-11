@@ -73,6 +73,10 @@ export function currentBlock(history: readonly WorkoutSession[], today: DayKey):
  * entrenamiento (sin saltos, que tienen su propio hueco, D-033) de la primera
  * sesión completada de esa zona dentro del bloque. Vacío si aún no hubo
  * ninguna: la primera los elige como siempre.
+ *
+ * Una sesión ligera no fija los principales (D-098): baja a las variantes
+ * accesibles (flexiones inclinadas, superman) y, si mandara, el bloque entero
+ * se quedaba en ellas aunque los días normales pidan más.
  */
 export function blockAnchors(
   history: readonly WorkoutSession[],
@@ -84,7 +88,7 @@ export function blockAnchors(
   if (count === 0) return []
   const { start } = currentBlock(history, today)
   const first = history
-    .filter((session) => session.status === 'completed' && session.focus === focus)
+    .filter((session) => session.status === 'completed' && session.focus === focus && session.intensity !== 'ligera')
     .filter((session) => session.dayKey >= start && session.dayKey <= today)
     .sort((a, b) => a.dayKey.localeCompare(b.dayKey) || a.startedAt.localeCompare(b.startedAt))[0]
   if (!first) return []

@@ -113,3 +113,33 @@ test('la sesión abre con los principales del bloque mientras se pueden hacer', 
   assert.ok(!ids.includes('dominadas'))
   assert.equal(findExercise(ids[0])?.family, 'flexion')
 })
+
+test('una sesión ligera no fija los principales del bloque (D-098)', () => {
+  const light = { ...session(MONDAY, { ids: ['flexiones-inclinadas', 'superman'] }), intensity: 'ligera' as const }
+  const normal = session(addDays(MONDAY, 1), { ids: ['flexiones', 'remo-unilateral'] })
+  assert.deepEqual(blockAnchors([light, normal], TODAY, 'tren_superior', EXERCISE_CATALOG), ['flexiones', 'remo-unilateral'])
+  // Solo ligeras: aún no hay principales; los elige el primer día normal.
+  assert.deepEqual(blockAnchors([light], TODAY, 'tren_superior', EXERCISE_CATALOG), [])
+})
+
+test('si no cabe, se quitan series de una en una, no todas a dos de golpe (D-098)', () => {
+  const gear: UserEquipment = { items: ['gomas', 'banco'], weights: [{ kind: 'kettlebell', kg: 12, pair: false }, { kind: 'kettlebell', kg: 16, pair: false }] }
+  const session = buildSession({
+    focus: 'tren_superior',
+    intensity: 'alta',
+    availableMinutes: 42,
+    goals: ['fuerza'],
+    experience: 'avanzado',
+    gear,
+    sex: 'mujer',
+    careZones: ['rodilla'],
+    today: TODAY,
+    anchorExerciseIds: ['flexiones-arquero', 'remo-renegado'],
+  })
+  const sets = session.exercises.filter(isMainExercise).map((item) => item.sets)
+  assert.ok(session.estimatedMinutes <= 42)
+  // Un día fuerte con media sesión libre en 2 series era el fallo: se aprovecha el tiempo.
+  // Con 42 min, antes salían 20: todo a 2 series.
+  assert.ok(session.estimatedMinutes >= 36, `${session.estimatedMinutes} min`)
+  assert.ok(sets.some((count) => count > 2), sets.join(','))
+})

@@ -213,7 +213,8 @@ test('sin carga, las repeticiones hasta el fallo menos la reserva, sin saltos', 
   })
   const reps = (history: WorkoutSession[]) => suggestWorkFor(flexiones, { ...base, history }).reps
   assert.equal(reps([session('ninguna')]), 9)
-  assert.equal(reps([session('una_dos')]), 10)
+  // Con la reserva buscada se sube una (D-098): si no, contestar «1–2» siempre lo dejaba igual.
+  assert.equal(reps([session('una_dos')]), 11)
   assert.equal(reps([session('tres_mas')]), 12)
   // Nunca más de dos pasos por encima de la última vez, aunque sobrara mucho.
   assert.equal(reps([session('tres_mas', 14)]), 16)
@@ -230,4 +231,15 @@ test('Progreso: el 1RM estimado de cada sesión, al medio kilo, solo con carga',
     { dayKey: '2026-10-18', best: 12 },
   ])
   assert.deepEqual(oneRepMaxHistory('flexiones', [newer]), [])
+})
+
+test('hecho entero con la reserva buscada, sube una repetición con el mismo peso (D-098)', () => {
+  const work = (sets: CompletedSet[]) => {
+    const { reps, weightKg } = suggestWorkFor(remo, { ...base, history: [remoSession(sets)] })
+    return { reps, weightKg }
+  }
+  // Antes, «1–2» con 8 kg × 12 volvía a dar 8 kg × 12 para siempre.
+  assert.deepEqual(work(three(8, 12, 'una_dos')), { reps: 13, weightKg: 8 })
+  // Al fallo no se fuerza la subida.
+  assert.deepEqual(work(three(8, 12, 'ninguna')), { reps: 11, weightKg: 8 })
 })
