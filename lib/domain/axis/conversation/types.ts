@@ -28,6 +28,8 @@ export type AxisIntent =
   /** Preguntas por el escáner corporal (D-023). Informa y ofrece opciones; el usuario decide. */
   | 'scan'
   | 'week'
+  /** El plan previsto de esta semana o de la que viene (D-099). */
+  | 'week_plan'
   | 'load'
   | 'goals'
   | 'sport_today'

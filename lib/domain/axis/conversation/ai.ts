@@ -329,6 +329,8 @@ export const AI_WORTHY_INTENTS: readonly AxisIntent[] = [
   'exercise',
   // La charla (D-042): un saludo de plantilla es justo lo que suena a máquina.
   'social',
+  // El plan de la semana (D-099): sin cifras, con los días que prevé el motor.
+  'week_plan',
   // Lo general (D-097): alimentación y conocimiento que el motor no sabe. Solo lo contesta la IA.
   'general',
   // Desde D-070 la IA es la voz de AXIS: también lo que toca hoy, los cambios ya hechos y lo que le cuentas.

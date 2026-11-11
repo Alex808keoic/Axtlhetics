@@ -71,15 +71,31 @@ function asDone(session: PlannedSession, dayKey: DayKey): WorkoutSession {
   }
 }
 
+type ProjectOptions = {
+  /** Si el entrenamiento de hoy se movió a mañana (D-022), mañana es día disponible. */
+  movedTo?: DayKey | null
+}
+
+/** De lunes a domingo de esta semana: lo hecho, lo de hoy y lo previsto. */
 export function projectWeek(
   context: AxisContext,
   /** La propuesta que el usuario tiene seleccionada hoy. */
   selected: AxisProposal | null,
-  options: {
-    /** Si el entrenamiento de hoy se movió a mañana (D-022), mañana es día disponible. */
-    movedTo?: DayKey | null
-  } = {},
+  options: ProjectOptions = {},
 ): WeekDayView[] {
+  return projectDays(context, selected, 7, options)
+}
+
+/**
+ * La semana que viene, de lunes a domingo (D-099): se prevé lo que queda de esta
+ * y se sigue, con la misma recuperación supuesta. Es una previsión: cada día se
+ * vuelve a decidir con cómo llega.
+ */
+export function projectNextWeek(context: AxisContext, selected: AxisProposal | null, options: ProjectOptions = {}): WeekDayView[] {
+  return projectDays(context, selected, 14, options).slice(7)
+}
+
+function projectDays(context: AxisContext, selected: AxisProposal | null, count: number, options: ProjectOptions): WeekDayView[] {
   const today = context.dayKey
   const monday = startOfWeek(today)
   const completed = context.recentSessions.filter((session) => session.status === 'completed')
@@ -90,7 +106,7 @@ export function projectWeek(
     context.activities.filter((activity) => activityOccursOn(activity, dayKey)).map((activity) => activity.name)
 
   const days: WeekDayView[] = []
-  for (let i = 0; i < 7; i += 1) {
+  for (let i = 0; i < count; i += 1) {
     const dayKey = addDays(monday, i)
     const isToday = dayKey === today
     const done = completed.filter((session) => session.dayKey === dayKey)

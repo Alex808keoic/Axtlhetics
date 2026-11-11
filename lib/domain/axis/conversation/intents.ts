@@ -39,6 +39,12 @@ const RULES: readonly IntentRule[] = [
     any: ['lesion', 'lesión', 'duel', 'doli', 'dolor', 'molest', 'medico', 'médico', 'fisio', 'estoy enfermo', 'rodilla', 'hombro me'],
   },
 
+  // El plan de la semana (D-099): antes que «semana» (el resumen) y que «entreno» (hoy).
+  {
+    intent: 'week_plan',
+    any: ['semana que viene', 'proxima semana', 'próxima semana', 'siguiente semana', 'plan de la semana', 'plan para la semana', 'plan de esta semana', 'plan semanal', 'que me queda esta semana', 'qué me queda esta semana', 'resto de la semana'],
+  },
+
   // Antes que 'change': preguntar qué se cambió no es pedir otro cambio.
   {
     intent: 'changed',

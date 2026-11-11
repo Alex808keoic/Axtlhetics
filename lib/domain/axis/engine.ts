@@ -110,8 +110,6 @@ export function decide(context: AxisContext): AxisDecision {
   const factors = [
     ...(deloadWhy && training ? [deloadFactor(deloadWhy)] : []),
     ...(firstRule ? [firstRule] : []),
-    // Lo que se cuida va antes que lo demás: es seguridad (D-051).
-    ...(careFactor ? [careFactor] : []),
     ...(screeningFactor ? [screeningFactor] : []),
     ...(sportFactor ? [sportFactor] : []),
     // Por qué hoy se aprieta (D-048), antes que el reparto de la semana.
@@ -121,6 +119,8 @@ export function decide(context: AxisContext): AxisDecision {
     // La edad y el peso explican cómo se ajusta la sesión, no por qué se entrena (D-096).
     ...(bodyFactor ? [bodyFactor] : []),
     ...(ageFactor ? [ageFactor] : []),
+    // Lo que se cuida se aplica siempre (D-051), pero no ocupa cada día el motivo: va tras lo que explica el día (D-099).
+    ...(careFactor ? [careFactor] : []),
     ...otherRules,
     // El escaneo va después: explica cómo se ajusta la sesión, no por qué se entrena hoy (D-041).
     ...(scanFactor ? [scanFactor] : []),
@@ -276,7 +276,11 @@ function blockedFocuses(context: AxisContext): SessionFocus[] {
   )
 }
 
-/** «Cuido tu rodilla…» (D-051). Nunca diagnostica. */
+/**
+ * «Cuido tu rodilla…» (D-051). Nunca diagnostica. Es un ajuste del perfil, no
+ * una molestia de hoy: sin «si la molestia sigue…», que repetido cada día
+ * sonaba a aviso (D-099).
+ */
 function careZonesFactor(zones: readonly CareZone[]): AxisFactor | null {
   if (zones.length === 0) return null
   const names = listNames(zones.map((zone) => CARE_ZONE_LABELS[zone].toLowerCase()))
@@ -284,7 +288,7 @@ function careZonesFactor(zones: readonly CareZone[]): AxisFactor | null {
   return {
     key: 'care_zones',
     label: 'Zonas a cuidar',
-    detail: `Cuido tu ${names}: dejo fuera los ejercicios que ${plural ? 'las' : 'la'} cargan. Si la molestia sigue, que ${plural ? 'las' : 'la'} vea un profesional.`,
+    detail: `Cuido tu ${names}: dejo fuera los ejercicios que ${plural ? 'las' : 'la'} cargan.`,
     direction: 'limits',
   }
 }

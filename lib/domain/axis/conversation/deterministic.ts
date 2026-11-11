@@ -29,6 +29,7 @@ import {
   looksLikeQuestion,
   looksLikeRequest,
   matchIntent,
+  normalizeQuestion,
   resolveExercise,
   type ExerciseResolution,
   type IntentMatch,
@@ -243,6 +244,8 @@ export function answerFromBriefing(
       return answerScan(briefing)
     case 'week':
       return answerWeek(briefing)
+    case 'week_plan':
+      return answerWeekPlan(question, briefing)
     case 'load':
       return answerLoad(briefing)
     case 'goals':
@@ -841,6 +844,44 @@ function answerLastSession(briefing: AxisBriefing): AxisAnswer {
   if (session.modifications.length > 0) parts.push(session.modifications.join(' '))
 
   return say('last_session', parts)
+}
+
+/**
+ * El plan de la semana (D-099): la que viene si se pregunta por ella; si no, lo
+ * que queda de esta. Día a día, con el mismo motor y una recuperación supuesta,
+ * y dicho como lo que es: una previsión que se ajusta cada día.
+ */
+function answerWeekPlan(question: string, briefing: AxisBriefing): AxisAnswer {
+  const next = /(semana que viene|proxima semana|siguiente semana)/.test(normalizeQuestion(question))
+  const days = next ? briefing.weekPlan.nextWeek : briefing.weekPlan.thisWeek.filter((day) => !day.done)
+  if (days.length === 0) {
+    return unknown(
+      'week_plan',
+      next ? 'Ahora mismo no puedo prever la semana que viene.' : 'Esta semana ya no queda nada por hacer: lo que falta es descanso.',
+    )
+  }
+  const line = days
+    .map((day) => {
+      const sport = day.activities.length > 0 ? day.activities.join(' y ').toLowerCase() : null
+      const plan = day.plan ? planTitle(day.plan) : null
+      const what = plan && sport ? `${plan} y ${sport}` : (plan ?? sport ?? 'descanso')
+      return `${day.day}, ${what}`
+    })
+    .join('; ')
+  const trained = days.filter((day) => day.plan).length
+  return say('week_plan', [
+    `${next ? 'La semana que viene' : 'Lo que queda de semana'}, si todo va como hasta ahora: ${line}.`,
+    trained === 0
+      ? 'No te pongo entrenos: con lo que ya llevas y tu deporte, toca recuperar.'
+      : `Son ${trained} ${trained === 1 ? 'entreno' : 'entrenos'}, repartidos para que encajen con tu deporte.`,
+    'Es una previsión: cada día lo ajusto con cómo llegues.',
+  ])
+}
+
+/** «Hipertrofia · Tren superior» → «tren superior». */
+function planTitle(title: string): string {
+  const [, focus] = title.split(' · ')
+  return (focus ?? title).toLowerCase()
 }
 
 function answerWeek(briefing: AxisBriefing): AxisAnswer {

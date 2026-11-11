@@ -81,7 +81,8 @@ test('AXIS lo explica, no diagnostica, y no elige un foco que la zona deja sin e
   const factor = decision.primary.factors.find((item) => item.key === 'care_zones')
   assert.ok(factor)
   assert.match(factor!.detail, /Cuido tu hombro y muñeca/)
-  assert.match(factor!.detail, /profesional/)
+  // Es un ajuste del perfil, no una molestia de hoy (D-099).
+  assert.doesNotMatch(factor!.detail, /molestia sigue/)
   // Hombro y muñeca dejan el tren superior sin ejercicios: hoy no toca.
   assert.notEqual(decision.primary.session?.focus, 'tren_superior')
 })

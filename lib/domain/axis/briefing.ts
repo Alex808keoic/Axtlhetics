@@ -29,7 +29,8 @@ import { isDatedActivity, sportsFromActivities } from '../profile/types'
 import type { RecoveryBand } from '../recovery/types'
 import { computeHistoryStats } from '../history/stats'
 import { RECOVERY_FACTOR_LABELS } from '../recovery/types'
-import { formatMinutesOfDay, type DayKey } from '../shared/dates'
+import { formatMinutesOfDay, WEEKDAY_LABELS, weekdayOfKey, type DayKey } from '../shared/dates'
+import { projectNextWeek, projectWeek, type WeekDayView } from './week-view'
 import { computeTrainingLoad, type TrainingLoadBand } from '../workouts/load'
 import type { Equipment, SessionFocus, WorkoutSession } from '../workouts/types'
 import { availableEquipment } from '../workouts/equipment'
@@ -174,6 +175,12 @@ export type AxisBriefing = {
   proposal: BriefingProposal | null
   lastSession: BriefingSession | null
   week: BriefingWeek
+  /**
+   * El plan previsto (D-099): lo que queda de esta semana y la que viene, día a
+   * día, con el mismo motor y una recuperación supuesta. Es una previsión: cada
+   * día se vuelve a decidir. Sin decisión del día, vacío.
+   */
+  weekPlan: { thisWeek: BriefingPlanDay[]; nextWeek: BriefingPlanDay[] }
   activitiesToday: BriefingActivity[]
   /** Deportes de mañana: influyen en cuánta carga conviene meter hoy. */
   activitiesTomorrow: BriefingActivity[]
@@ -269,6 +276,22 @@ export type BriefingReorganization = {
  * pantalla de Inicio. Es lo que garantiza que la conversación no pueda contradecir
  * a la recomendación mostrada.
  */
+/**
+ * Un día del plan previsto (D-099). `plan` es el título de la sesión, o `null`
+ * si se descansa. Sin fecha a propósito: el briefing viaja a la IA y sus cifras
+ * respaldan las del modelo; las de 14 fechas dejarían pasar casi cualquier día.
+ */
+export type BriefingPlanDay = { day: string; done: boolean; plan: string | null; activities: string[] }
+
+function planDays(days: readonly WeekDayView[]): BriefingPlanDay[] {
+  return days.map((view) => ({
+    day: WEEKDAY_LABELS[weekdayOfKey(view.dayKey)].toLowerCase(),
+    done: view.status === 'done',
+    plan: view.title,
+    activities: view.activities,
+  }))
+}
+
 export function buildBriefing(
   context: AxisContext,
   decision: AxisDecision | null,
@@ -296,8 +319,17 @@ export function buildBriefing(
     sessions.find((session) => session.status === 'completed') ??
     null
 
+  const projection = { movedTo }
+  const weekPlan = decision
+    ? {
+        thisWeek: planDays(projectWeek(context, selected ?? decision.primary, projection).filter((view) => view.dayKey >= context.dayKey || view.status === 'done')),
+        nextWeek: planDays(projectNextWeek(context, selected ?? decision.primary, projection)),
+      }
+    : { thisWeek: [], nextWeek: [] }
+
   return {
     dayKey: context.dayKey,
+    weekPlan,
     profile: context.profile
       ? {
           name: context.profile.name,

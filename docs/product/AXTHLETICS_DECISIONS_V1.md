@@ -2898,6 +2898,15 @@ Como siempre (D-030), el usuario puede pedir entrenar igual: el descanso trae se
 
 ---
 
+## D-099 — Días ligeros, zonas a cuidar y el plan de la semana
+
+**Fecha:** 2026-11-11 · **Estado:** aprobada e implementada · Pedido por Alex («arréglalo todo») sobre lo visto y no cambiado en D-098. **Enmienda** D-008 (los días ligeros) y D-051 (cómo se explican las zonas a cuidar).
+
+- **Días ligeros sin bajar de lo que ya se hace.** Un día ligero bajaba siempre a la variante accesible, aunque el usuario ya hiciera la normal: quien hacía flexiones volvía a las inclinadas cada víspera de partido. Ahora, si la última vez se hizo el ejercicio entero, el día ligero lo mantiene; lo ligero son menos series y más reserva («3 o más»). Sin haberlo hecho, o a medias, sigue bajando a la accesible.
+- **Zonas a cuidar sin aviso diario.** «Cuido tu rodilla: dejo fuera los ejercicios que la cargan» se mantiene, pero sin «si la molestia sigue, que la vea un profesional»: es un ajuste del perfil, no una molestia de hoy, y repetido cada mañana sonaba a aviso. Va después de lo que explica el día, así que no ocupa siempre el motivo. Los ejercicios se siguen dejando fuera igual.
+- **El plan de la semana.** Nueva intención `week_plan` («plan para la semana que viene», «próxima semana», «qué me queda esta semana»…), antes que el resumen de la semana: AXIS dice día a día lo que prevé —la que viene o lo que queda de esta—, con el deporte, cuántos entrenos son y que es una previsión que ajusta cada día. Sale del mismo motor (`projectNextWeek`, que sigue la proyección de D-048 una semana más) y viaja en `briefing.weekPlan` sin fechas, para que sus cifras no respalden días inventados por la IA. «¿Qué tal voy esta semana?» sigue siendo el resumen.
+---
+
 ## Decisiones pendientes
 
 Nada de lo que sigue debe inventarse ni resolverse sin aprobación explícita de Alex.

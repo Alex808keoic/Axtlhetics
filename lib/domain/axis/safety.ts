@@ -253,6 +253,8 @@ export const LONG_ANSWER_INTENTS: readonly AxisIntent[] = [
   'sport_impact',
   'goals',
   'exercise',
+  // El plan de la semana (D-099) se explica día a día.
+  'week_plan',
   // Una pregunta general (D-097) se contesta como un entrenador: desarrollada.
   'general',
 ]

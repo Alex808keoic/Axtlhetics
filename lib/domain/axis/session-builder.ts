@@ -926,7 +926,8 @@ export function adaptDifficulty(
     goal?: TrainingGoal
     youth?: boolean
     /**
-     * `light`: se baja a la variante accesible aunque se domine (D-008) y solo se
+     * `light`: se baja a la variante accesible aunque se domine (D-008), salvo si
+     * esta ya se hace entera (D-099), y solo se
      * sube por debajo del objetivo. `deload`: se sigue en la variante que tocaba,
      * sin subir (D-031).
      */
@@ -937,6 +938,12 @@ export function adaptDifficulty(
   const equipment = availableEquipment(gear)
 
   if (exercise.difficulty > target) {
+    /*
+     * Un día ligero no baja de lo que ya se hace entero (D-099): lo ligero son
+     * menos series y más reserva. Antes bajaba siempre a la variante accesible
+     * y quien hacía flexiones volvía a las inclinadas cada víspera de partido.
+     */
+    if (mode === 'light' && lastPerformanceOf(exercise.id, history)?.allSetsCompleted) return exercise
     const easier = variantOf(exercise, 'easier', catalog, equipment)
     // Lo que ya se dominó no se vuelve a hacer: de ahí se subió a esta (D-089).
     if (mode === 'light' || easier === exercise || !hasMastered(easier, history, gear, goal, youth)) return easier
